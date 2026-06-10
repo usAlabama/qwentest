@@ -238,6 +238,35 @@
             border-radius: 4px;
         }
 
+        .chart-info-overlay {
+            position: absolute;
+            top: 8px;
+            right: 80px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            z-index: 5;
+            pointer-events: none;
+            background: rgba(8, 12, 16, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .chart-info-overlay .info-item {
+            display: flex;
+            gap: 4px;
+        }
+
+        .chart-info-overlay .info-label {
+            color: var(--text-muted);
+        }
+
+        .chart-info-overlay .info-value {
+            font-weight: 600;
+        }
+
         .loading-overlay {
             position: absolute;
             top: 0;
@@ -470,7 +499,7 @@
             tg.expand();
         }
 
-        console.log('🚀 Терминал v2.3 запускается...');
+        console.log('🚀 Терминал v2.4 запускается...');
 
         const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
         let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['SOLUSDT', 'TONUSDT', 'DOGEUSDT'];
@@ -528,12 +557,14 @@
             MACD_HIST_UP: '#00e676',
             MACD_HIST_DOWN: '#ff5252',
             RSI: '#9c27b0',
-            ADX: '#ff9800',
+            ADX: '#2962ff',
             PDI: '#00e676',
             NDI: '#ff5252',
             VOLUME_UP: '#26a69a',
             VOLUME_DOWN: '#ef5350'
         };
+
+        const PRICE_SCALE_WIDTH = 60;
 
         document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
 
@@ -679,7 +710,10 @@
                             style: LightweightCharts.LineStyle.Dashed,
                         }
                     },
-                    rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                    rightPriceScale: { 
+                        borderColor: 'rgba(197, 203, 206, 0.4)',
+                        minimumWidth: PRICE_SCALE_WIDTH
+                    },
                     timeScale: {
                         borderColor: 'rgba(197, 203, 206, 0.4)',
                         timeVisible: true,
@@ -726,7 +760,7 @@
                 if (INDICATORS.VWAP) {
                     vwapSeries = mainChart.addLineSeries({
                         color: INDICATOR_COLORS.VWAP,
-                        lineWidth: 2,
+                        lineWidth: 1,
                         title: 'VWAP',
                         lastValueVisible: true,
                         priceLineVisible: false,
@@ -748,13 +782,26 @@
                             horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
                         },
                         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                        rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                        rightPriceScale: { 
+                            borderColor: 'rgba(197, 203, 206, 0.4)',
+                            minimumWidth: PRICE_SCALE_WIDTH
+                        },
                         timeScale: {
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { mouseWheel: false },
-                        handleScale: { mouseWheel: false },
+                        handleScroll: { 
+                            mouseWheel: false,
+                            pressedMouseMove: false,
+                            horzTouchDrag: false,
+                            vertTouchDrag: false
+                        },
+                        handleScale: { 
+                            mouseWheel: false,
+                            pinch: false,
+                            axisPressedMouseMove: { time: false, price: false },
+                            axisDoubleClickReset: false
+                        },
                     });
 
                     macdHistogramSeries = macdChart.addHistogramSeries({
@@ -791,13 +838,26 @@
                             horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
                         },
                         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                        rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                        rightPriceScale: { 
+                            borderColor: 'rgba(197, 203, 206, 0.4)',
+                            minimumWidth: PRICE_SCALE_WIDTH
+                        },
                         timeScale: {
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { mouseWheel: false },
-                        handleScale: { mouseWheel: false },
+                        handleScroll: { 
+                            mouseWheel: false,
+                            pressedMouseMove: false,
+                            horzTouchDrag: false,
+                            vertTouchDrag: false
+                        },
+                        handleScale: { 
+                            mouseWheel: false,
+                            pinch: false,
+                            axisPressedMouseMove: { time: false, price: false },
+                            axisDoubleClickReset: false
+                        },
                     });
 
                     rsiSeries = rsiChart.addLineSeries({
@@ -806,6 +866,24 @@
                         title: 'RSI',
                         lastValueVisible: true,
                         priceLineVisible: false,
+                    });
+
+                    rsiChart.createPriceLine({
+                        price: 70,
+                        color: 'rgba(255, 255, 255, 0.15)',
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: false,
+                        title: '',
+                    });
+
+                    rsiChart.createPriceLine({
+                        price: 30,
+                        color: 'rgba(255, 255, 255, 0.15)',
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: false,
+                        title: '',
                     });
                 }
 
@@ -822,13 +900,26 @@
                             horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
                         },
                         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                        rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                        rightPriceScale: { 
+                            borderColor: 'rgba(197, 203, 206, 0.4)',
+                            minimumWidth: PRICE_SCALE_WIDTH
+                        },
                         timeScale: {
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { mouseWheel: false },
-                        handleScale: { mouseWheel: false },
+                        handleScroll: { 
+                            mouseWheel: false,
+                            pressedMouseMove: false,
+                            horzTouchDrag: false,
+                            vertTouchDrag: false
+                        },
+                        handleScale: { 
+                            mouseWheel: false,
+                            pinch: false,
+                            axisPressedMouseMove: { time: false, price: false },
+                            axisDoubleClickReset: false
+                        },
                     });
 
                     adxSeries = adxChart.addLineSeries({
@@ -1110,6 +1201,33 @@
             }
         }
 
+        function updateChartInfoOverlay(candle) {
+            let overlay = document.querySelector('.chart-info-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'chart-info-overlay';
+                document.getElementById('main-chart').appendChild(overlay);
+            }
+
+            const isUp = candle.close >= candle.open;
+            const color = isUp ? 'var(--up-color)' : 'var(--down-color)';
+            const price = candle.close.toFixed(candle.close < 1 ? 4 : (candle.close < 20 ? 3 : 2));
+            const volume = candle.volume >= 1000000 ? (candle.volume / 1000000).toFixed(2) + 'M' : 
+                          candle.volume >= 1000 ? (candle.volume / 1000).toFixed(2) + 'K' : 
+                          candle.volume.toFixed(2);
+
+            overlay.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Цена:</span>
+                    <span class="info-value" style="color: ${color}">${price}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Объём:</span>
+                    <span class="info-value" style="color: ${color}">${volume}</span>
+                </div>
+            `;
+        }
+
         async function loadChartHistory(symbol) {
             console.log(`📥 Загрузка истории для ${symbol} (${currentInterval})...`);
             showLoading(true);
@@ -1166,6 +1284,10 @@
                     adxSeries.setData(adx.adx);
                     pdiSeries.setData(adx.pdi);
                     ndiSeries.setData(adx.ndi);
+                }
+
+                if (candleHistory.length > 0) {
+                    updateChartInfoOverlay(candleHistory[candleHistory.length - 1]);
                 }
 
                 mainChart.timeScale().fitContent();
@@ -1253,6 +1375,8 @@
                     } else {
                         candleHistory[candleHistory.length - 1] = candle;
                     }
+
+                    updateChartInfoOverlay(candle);
 
                     if (isNewCandle) {
                         updateIndicatorsRealtime();
