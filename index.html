@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Crypto Terminal</title>
+    <!-- SVG Favicon -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232962ff'/%3E%3Cstop offset='100%25' stop-color='%2300e676'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' rx='20' width='100' height='100'/%3E%3Ctext x='50' y='68' font-family='Arial' font-weight='bold' font-size='60' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- ВАЖНО: версия 4.1.3 зафиксирована жёстко -->
     <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         :root {
@@ -173,6 +174,43 @@
             background: rgba(255,255,255,0.03);
         }
 
+        /* Интервалы (кнопки) */
+        .interval-selector {
+            display: flex;
+            gap: 4px;
+            padding: 8px 12px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            align-items: center;
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .interval-selector::-webkit-scrollbar { display: none; }
+
+        .interval-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .interval-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .interval-btn:active {
+            transform: scale(0.95);
+        }
+
         #chart-container {
             width: 100%;
             flex-grow: 1;
@@ -243,6 +281,16 @@
 
     <div class="crypto-selector" id="coin-list"></div>
 
+    <!-- Переключатель интервалов -->
+    <div class="interval-selector">
+        <button class="interval-btn" data-interval="1m">1m</button>
+        <button class="interval-btn" data-interval="5m">5m</button>
+        <button class="interval-btn active" data-interval="15m">15m</button>
+        <button class="interval-btn" data-interval="1h">1h</button>
+        <button class="interval-btn" data-interval="4h">4h</button>
+        <button class="interval-btn" data-interval="1d">1d</button>
+    </div>
+
     <div id="chart-container"></div>
     <div id="toast-container"></div>
 
@@ -253,29 +301,75 @@
             tg.expand();
         }
 
-        console.log('🚀 Терминал запускается...');
-        console.log('LightweightCharts загружен:', typeof LightweightCharts !== 'undefined');
-        if (typeof LightweightCharts !== 'undefined') {
-            console.log('Версия:', LightweightCharts.version || 'неизвестна');
-        }
+        console.log('🚀 Терминал v2.0 запускается...');
 
         const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
         let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['SOLUSDT', 'TONUSDT', 'DOGEUSDT'];
         const MAX_TOTAL_COINS = 15; 
         
         let currentSymbol = 'BTCUSDT';
+        let currentInterval = '15m';
         let chart = null;
         let candlestickSeries = null;
-        let smaSeries = null;
+        let volumeSeries = null;
+        let vwapSeries = null;
+        let macdSeries = null;
+        let macdSignalSeries = null;
+        let macdHistogramSeries = null;
+        let rsiSeries = null;
+        let adxSeries = null;
+        let pdiSeries = null;
+        let ndiSeries = null;
         let candleHistory = [];
         let klineWs = null;
         let tickerWs = null;
         let prices = {}; 
         let alertsEnabled = localStorage.getItem('amigo_alerts_enabled') === 'true';
+        
+        // ===== НАСТРОЙКИ ИНДИКАТОРОВ =====
+        // Закомментируйте любой блок, чтобы отключить индикатор
+        
+        const INDICATORS = {
+            VWAP: true,      // VWAP поверх свечей
+            MACD: true,      // MACD (гистограмма + сигнальная)
+            RSI: true,       // RSI (индекс относительной силы)
+            ADX: true        // ADX (+DI, -DI, ADX)
+        };
+
+        // ===== ЦВЕТА СВЕЧЕЙ (меняйте здесь) =====
+        const CANDLE_COLORS = {
+            UP_COLOR: '#00e676',        // Зелёная свеча (рост)
+            DOWN_COLOR: '#ff5252',      // Красная свеча (падение)
+            UP_WICK: '#00e676',         // Фитиль зелёной
+            DOWN_WICK: '#ff5252'        // Фитиль красной
+        };
+
+        // ===== ЦВЕТА ИНДИКАТОРОВ =====
+        const INDICATOR_COLORS = {
+            VWAP: '#2962ff',            // Синий VWAP
+            MACD: '#2962ff',            // MACD Line
+            MACD_SIGNAL: '#ff9800',     // Signal Line
+            MACD_HIST_UP: '#00e676',    // Гистограмма рост
+            MACD_HIST_DOWN: '#ff5252',  // Гистограмма падение
+            RSI: '#9c27b0',             // RSI фиолетовый
+            ADX: '#ff9800',             // ADX оранжевый
+            PDI: '#00e676',             // +DI зелёный
+            NDI: '#ff5252'              // -DI красный
+        };
+
         const SMA_PERIOD = 9;
-        const CHART_INTERVAL = '15m';
 
         document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
+
+        // Обработчик интервалов
+        document.querySelectorAll('.interval-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const interval = btn.dataset.interval;
+                if (interval !== currentInterval) {
+                    changeInterval(interval, btn);
+                }
+            });
+        });
 
         function renderCoinList() {
             const container = document.getElementById('coin-list');
@@ -322,94 +416,387 @@
         function initChart() {
             const container = document.getElementById('chart-container');
             if (!container) {
-                console.error('❌ Контейнер chart-container не найден');
+                console.error('❌ Контейнер не найден');
                 return;
             }
             
             console.log('📊 Инициализация графика...');
-            console.log('Размеры контейнера:', container.clientWidth, 'x', container.clientHeight);
-            
             container.innerHTML = '';
 
             if (typeof LightweightCharts === 'undefined') {
                 console.error('❌ LightweightCharts не загружен!');
-                showToast('Ошибка', 'Библиотека графиков не загрузилась', 'alert-down');
                 return;
             }
 
-            try {
-                chart = LightweightCharts.createChart(container, {
-                    width: container.clientWidth,
-                    height: container.clientHeight,
-                    layout: {
-                        textColor: '#d1d4dc',
-                        background: { type: 'solid', color: '#080c10' },
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: {
+                    textColor: '#d1d4dc',
+                    background: { type: 'solid', color: '#080c10' },
+                },
+                grid: {
+                    vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
+                },
+                crosshair: { 
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: {
+                        width: 1,
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        style: LightweightCharts.LineStyle.Dashed,
                     },
-                    grid: {
-                        vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
-                        horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
-                    },
-                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                    rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
-                    timeScale: {
-                        borderColor: 'rgba(197, 203, 206, 0.4)',
-                        timeVisible: true,
-                        secondsVisible: false,
-                    },
-                });
-
-                console.log('✅ График создан');
-
-                candlestickSeries = chart.addCandlestickSeries({
-                    upColor: '#00e676', downColor: '#ff5252',
-                    borderVisible: false,
-                    wickUpColor: '#00e676', wickDownColor: '#ff5252'
-                });
-
-                smaSeries = chart.addLineSeries({
-                    color: '#ff9800',
-                    lineWidth: 2,
-                    title: `SMA ${SMA_PERIOD}`
-                });
-
-                console.log('✅ Серии добавлены');
-
-                const resizeObserver = new ResizeObserver(entries => {
-                    const { width, height } = entries[0].contentRect;
-                    if (width > 0 && height > 0) {
-                        chart.resize(width, height);
-                        console.log('🔄 Ресайз:', width, 'x', height);
+                    horzLine: {
+                        width: 1,
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        style: LightweightCharts.LineStyle.Dashed,
                     }
+                },
+                rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.4)',
+                    timeVisible: true,
+                    secondsVisible: false,
+                    rightBarStaysOnScroll: true,
+                },
+                handleScroll: {
+                    vertTouchDrag: false,
+                    horzTouchDrag: true,
+                    mouseWheel: true,
+                },
+                handleScale: {
+                    axisPressedMouseMove: { time: true, price: true },
+                    mouseWheel: true,
+                    pinch: true,
+                },
+            });
+
+            // Свечи
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: CANDLE_COLORS.UP_COLOR,
+                downColor: CANDLE_COLORS.DOWN_COLOR,
+                borderVisible: false,
+                wickUpColor: CANDLE_COLORS.UP_WICK,
+                wickDownColor: CANDLE_COLORS.DOWN_WICK,
+            });
+
+            // Volume (под свечами)
+            volumeSeries = chart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                },
+                priceScaleId: '',
+                scaleMargins: {
+                    top: 0.85,
+                    bottom: 0,
+                },
+            });
+
+            // VWAP (поверх свечей)
+            if (INDICATORS.VWAP) {
+                vwapSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.VWAP,
+                    lineWidth: 2,
+                    title: 'VWAP',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
                 });
-                resizeObserver.observe(container);
-            } catch (err) {
-                console.error('❌ Ошибка создания графика:', err);
-                showToast('Ошибка', 'Не удалось создать график: ' + err.message, 'alert-down');
             }
+
+            // MACD (отдельная панель)
+            if (INDICATORS.MACD) {
+                const macdPane = chart.addHistogramSeries({
+                    color: INDICATOR_COLORS.MACD_HIST_UP,
+                    priceFormat: {
+                        type: 'price',
+                        precision: 2,
+                        minMove: 0.01,
+                    },
+                    priceScaleId: 'macd',
+                    scaleMargins: {
+                        top: 0.1,
+                        bottom: 0,
+                    },
+                });
+
+                macdSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.MACD,
+                    lineWidth: 2,
+                    title: 'MACD',
+                    priceScaleId: 'macd',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+
+                macdSignalSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.MACD_SIGNAL,
+                    lineWidth: 2,
+                    title: 'Signal',
+                    priceScaleId: 'macd',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+            }
+
+            // RSI (отдельная панель)
+            if (INDICATORS.RSI) {
+                rsiSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.RSI,
+                    lineWidth: 2,
+                    title: 'RSI (14)',
+                    priceScaleId: 'rsi',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+                
+                // Добавляем уровни 30 и 70 для RSI
+                chart.addLineSeries({
+                    color: 'rgba(156, 39, 176, 0.3)',
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    priceScaleId: 'rsi',
+                    lastValueVisible: false,
+                    priceLineVisible: false,
+                }).setData(Array.from({length: 100}, (_, i) => ({
+                    time: Math.floor(Date.now() / 1000) + i * 3600,
+                    value: 70
+                })));
+            }
+
+            // ADX (отдельная панель с тремя линиями)
+            if (INDICATORS.ADX) {
+                adxSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.ADX,
+                    lineWidth: 2,
+                    title: 'ADX',
+                    priceScaleId: 'adx',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+
+                pdiSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.PDI,
+                    lineWidth: 1,
+                    title: '+DI',
+                    priceScaleId: 'adx',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+
+                ndiSeries = chart.addLineSeries({
+                    color: INDICATOR_COLORS.NDI,
+                    lineWidth: 1,
+                    title: '-DI',
+                    priceScaleId: 'adx',
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                });
+            }
+
+            const resizeObserver = new ResizeObserver(entries => {
+                const { width, height } = entries[0].contentRect;
+                if (width > 0 && height > 0) {
+                    chart.resize(width, height);
+                }
+            });
+            resizeObserver.observe(container);
+
+            console.log('✅ График и индикаторы созданы');
         }
 
-        function calculateSMA(data, period) {
-            if (data.length < period) return null;
-            const slice = data.slice(-period);
-            const sum = slice.reduce((acc, c) => acc + c.close, 0);
-            return sum / period;
+        // ===== VWAP Calculation =====
+        function calculateVWAP(data) {
+            let cumulativeTPV = 0;
+            let cumulativeVolume = 0;
+            const vwapData = [];
+            
+            for (let i = 0; i < data.length; i++) {
+                const candle = data[i];
+                const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+                cumulativeTPV += typicalPrice * candle.volume;
+                cumulativeVolume += candle.volume;
+                
+                vwapData.push({
+                    time: candle.time,
+                    value: cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : candle.close
+                });
+            }
+            
+            return vwapData;
         }
 
-        function buildSmaSeries(history) {
-            const result = [];
-            for (let i = SMA_PERIOD - 1; i < history.length; i++) {
-                const slice = history.slice(i - SMA_PERIOD + 1, i + 1);
-                const sum = slice.reduce((a, c) => a + c.close, 0);
-                result.push({ time: history[i].time, value: sum / SMA_PERIOD });
+        // ===== MACD Calculation =====
+        function calculateMACD(data, fast=12, slow=26, signal=9) {
+            const emaFast = calculateEMA(data, fast);
+            const emaSlow = calculateEMA(data, slow);
+            
+            const macdLine = [];
+            for (let i = 0; i < data.length; i++) {
+                macdLine.push({
+                    time: data[i].time,
+                    value: emaFast[i].value - emaSlow[i].value
+                });
             }
-            return result;
+            
+            const signalLine = calculateEMA(macdLine, signal);
+            
+            const histogram = [];
+            for (let i = 0; i < data.length; i++) {
+                histogram.push({
+                    time: data[i].time,
+                    value: macdLine[i].value - signalLine[i].value,
+                    color: macdLine[i].value >= signalLine[i].value ? INDICATOR_COLORS.MACD_HIST_UP : INDICATOR_COLORS.MACD_HIST_DOWN
+                });
+            }
+            
+            return { macdLine, signalLine, histogram };
+        }
+
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            const ema = [];
+            let prevEma = data[0].close;
+            
+            for (let i = 0; i < data.length; i++) {
+                const emaValue = data[i].close * k + prevEma * (1 - k);
+                ema.push({ time: data[i].time, value: emaValue });
+                prevEma = emaValue;
+            }
+            
+            return ema;
+        }
+
+        // ===== RSI Calculation =====
+        function calculateRSI(data, period=14) {
+            const rsi = [];
+            let gains = 0;
+            let losses = 0;
+            
+            // First average
+            for (let i = 1; i <= period; i++) {
+                const change = data[i].close - data[i-1].close;
+                if (change > 0) gains += change;
+                else losses += Math.abs(change);
+            }
+            
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+            
+            for (let i = period; i < data.length; i++) {
+                const change = data[i].close - data[i-1].close;
+                const gain = change > 0 ? change : 0;
+                const loss = change < 0 ? Math.abs(change) : 0;
+                
+                avgGain = (avgGain * (period - 1) + gain) / period;
+                avgLoss = (avgLoss * (period - 1) + loss) / period;
+                
+                const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+                const rsiValue = 100 - (100 / (1 + rs));
+                
+                rsi.push({ time: data[i].time, value: rsiValue });
+            }
+            
+            return rsi;
+        }
+
+        // ===== ADX Calculation =====
+        function calculateADX(data, period=14) {
+            const adx = [];
+            const pdi = [];
+            const ndi = [];
+            
+            let trSum = 0;
+            let plusDMSum = 0;
+            let minusDMSum = 0;
+            
+            // Calculate TR, +DM, -DM
+            for (let i = 1; i <= period; i++) {
+                const high = data[i].high;
+                const low = data[i].low;
+                const prevClose = data[i-1].close;
+                const prevHigh = data[i-1].high;
+                const prevLow = data[i-1].low;
+                
+                const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+                trSum += tr;
+                
+                const upMove = high - prevHigh;
+                const downMove = prevLow - low;
+                
+                if (upMove > downMove && upMove > 0) {
+                    plusDMSum += upMove;
+                } else {
+                    plusDMSum += 0;
+                }
+                
+                if (downMove > upMove && downMove > 0) {
+                    minusDMSum += downMove;
+                } else {
+                    minusDMSum += 0;
+                }
+            }
+            
+            let avgTR = trSum / period;
+            let avgPlusDM = plusDMSum / period;
+            let avgMinusDM = minusDMSum / period;
+            
+            let plusDI = (avgPlusDM / avgTR) * 100;
+            let minusDI = (avgMinusDM / avgTR) * 100;
+            let dx = Math.abs(plusDI - minusDI) / (plusDI + minusDI) * 100;
+            let adxValue = dx;
+            
+            adx.push({ time: data[period].time, value: adxValue });
+            pdi.push({ time: data[period].time, value: plusDI });
+            ndi.push({ time: data[period].time, value: minusDI });
+            
+            // Smoothed values
+            for (let i = period + 1; i < data.length; i++) {
+                const high = data[i].high;
+                const low = data[i].low;
+                const prevClose = data[i-1].close;
+                const prevHigh = data[i-1].high;
+                const prevLow = data[i-1].low;
+                
+                const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+                avgTR = (avgTR * (period - 1) + tr) / period;
+                
+                const upMove = high - prevHigh;
+                const downMove = prevLow - low;
+                
+                let plusDM = 0;
+                let minusDM = 0;
+                
+                if (upMove > downMove && upMove > 0) {
+                    plusDM = upMove;
+                }
+                
+                if (downMove > upMove && downMove > 0) {
+                    minusDM = downMove;
+                }
+                
+                avgPlusDM = (avgPlusDM * (period - 1) + plusDM) / period;
+                avgMinusDM = (avgMinusDM * (period - 1) + minusDM) / period;
+                
+                plusDI = (avgPlusDM / avgTR) * 100;
+                minusDI = (avgMinusDM / avgTR) * 100;
+                
+                dx = Math.abs(plusDI - minusDI) / (plusDI + minusDI) * 100;
+                adxValue = (adxValue * (period - 1) + dx) / period;
+                
+                adx.push({ time: data[i].time, value: adxValue });
+                pdi.push({ time: data[i].time, value: plusDI });
+                ndi.push({ time: data[i].time, value: minusDI });
+            }
+            
+            return { adx, pdi, ndi };
         }
 
         async function loadChartHistory(symbol) {
-            console.log(`📥 Загрузка истории для ${symbol}...`);
+            console.log(`📥 Загрузка истории для ${symbol} (${currentInterval})...`);
             
             try {
-                const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${CHART_INTERVAL}&limit=300`;
+                const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${currentInterval}&limit=300`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
@@ -421,14 +808,50 @@
                     open: parseFloat(k[1]),
                     high: parseFloat(k[2]),
                     low: parseFloat(k[3]),
-                    close: parseFloat(k[4])
+                    close: parseFloat(k[4]),
+                    volume: parseFloat(k[5])
                 }));
 
+                // Свечи
                 candlestickSeries.setData(candleHistory);
-                smaSeries.setData(buildSmaSeries(candleHistory));
-                chart.timeScale().fitContent();
 
-                console.log(`✅ История отрисована`);
+                // Volume
+                const volumeData = candleHistory.map(c => ({
+                    time: c.time,
+                    value: c.volume,
+                    color: c.close >= c.open ? INDICATOR_COLORS.MACD_HIST_UP : INDICATOR_COLORS.MACD_HIST_DOWN
+                }));
+                volumeSeries.setData(volumeData);
+
+                // VWAP
+                if (INDICATORS.VWAP && vwapSeries) {
+                    const vwapData = calculateVWAP(candleHistory);
+                    vwapSeries.setData(vwapData);
+                }
+
+                // MACD
+                if (INDICATORS.MACD && macdSeries && macdSignalSeries) {
+                    const macd = calculateMACD(candleHistory);
+                    macdSeries.setData(macd.macdLine);
+                    macdSignalSeries.setData(macd.signalLine);
+                }
+
+                // RSI
+                if (INDICATORS.RSI && rsiSeries) {
+                    const rsiData = calculateRSI(candleHistory);
+                    rsiSeries.setData(rsiData);
+                }
+
+                // ADX
+                if (INDICATORS.ADX && adxSeries && pdiSeries && ndiSeries) {
+                    const adx = calculateADX(candleHistory);
+                    adxSeries.setData(adx.adx);
+                    pdiSeries.setData(adx.pdi);
+                    ndiSeries.setData(adx.ndi);
+                }
+
+                chart.timeScale().fitContent();
+                console.log(`✅ Все индикаторы отрисованы`);
                 return true;
             } catch (err) {
                 console.error('❌ Ошибка загрузки истории:', err);
@@ -443,10 +866,7 @@
                 klineWs.close();
             }
 
-            const intervalMap = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' };
-            const wsInterval = intervalMap[CHART_INTERVAL] || '15m';
-            const socketUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${wsInterval}`;
-            
+            const socketUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${currentInterval}`;
             console.log(`🔌 Kline WS: ${socketUrl}`);
             
             klineWs = new WebSocket(socketUrl);
@@ -464,10 +884,18 @@
                         open: parseFloat(k.o),
                         high: parseFloat(k.h),
                         low: parseFloat(k.l),
-                        close: parseFloat(k.c)
+                        close: parseFloat(k.c),
+                        volume: parseFloat(k.v)
                     };
 
                     candlestickSeries.update(candle);
+                    
+                    // Update volume
+                    volumeSeries.update({
+                        time: candle.time,
+                        value: candle.volume,
+                        color: candle.close >= candle.open ? INDICATOR_COLORS.MACD_HIST_UP : INDICATOR_COLORS.MACD_HIST_DOWN
+                    });
 
                     const lastHist = candleHistory[candleHistory.length - 1];
                     if (!lastHist || lastHist.time !== candle.time) {
@@ -477,9 +905,10 @@
                         candleHistory[candleHistory.length - 1] = candle;
                     }
 
-                    const smaValue = calculateSMA(candleHistory, SMA_PERIOD);
-                    if (smaValue !== null) {
-                        smaSeries.update({ time: candle.time, value: smaValue });
+                    // Recalculate indicators (simplified for real-time)
+                    if (INDICATORS.VWAP && vwapSeries) {
+                        const vwapData = calculateVWAP(candleHistory);
+                        vwapSeries.setData(vwapData);
                     }
                 } catch (e) {
                     console.error('Ошибка парсинга kline:', e);
@@ -499,7 +928,7 @@
 
         function initTickerWebSocket(coins) {
             if (tickerWs && tickerWs.readyState !== WebSocket.CLOSED) {
-                return; // Уже работает
+                return;
             }
             
             if (tickerWs) {
@@ -574,13 +1003,21 @@
             await loadChartHistory(symbol);
             initKlineWebSocket(symbol);
             
-            // Ticker WS — только при первом запуске
             const allCoins = [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS);
             initTickerWebSocket(allCoins);
+        }
+
+        async function changeInterval(interval, btnElement) {
+            console.log(`\n⏱ Смена интервала на ${interval}`);
             
-            if (tg?.HapticFeedback) {
-                tg.HapticFeedback.selectionChanged();
-            }
+            currentInterval = interval;
+            
+            document.querySelectorAll('.interval-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            initChart();
+            await loadChartHistory(currentSymbol);
+            initKlineWebSocket(currentSymbol);
         }
 
         function addNewCoin() {
@@ -605,7 +1042,6 @@
                 localStorage.setItem('amigo_user_coins', JSON.stringify(userCoins));
                 renderCoinList();
                 showToast("Успешно", `${newCoin.replace('USDT','')} добавлен`, 'info');
-                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             } else {
                 showToast("Инфо", "Монета уже добавлена", "info");
             }
@@ -624,7 +1060,6 @@
                 renderCoinList();
             }
             showToast("Удалено", `${coin.replace('USDT','')} извлечен`, 'info');
-            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
         }
 
         function toggleSmartAlerts() {
@@ -635,29 +1070,26 @@
             btn.classList.toggle('active', alertsEnabled);
             
             if (alertsEnabled) {
-                showToast("Smart Alerts", "Мониторинг ≥10% запущен", "info");
-                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                showToast("Smart Alerts", "Мониторинг ≥2% запущен", "info");
             } else {
                 showToast("Smart Alerts", "Мониторинг деактивирован", "info");
             }
         }
 
         function checkAndFireAlert(symbol, price, changePct) {
-            if (Math.abs(changePct) < 10.0) return;
+            // ИЗМЕНЕНО: порог 2% вместо 10%
+            if (Math.abs(changePct) < 2.0) return;
 
             const alertKey = `alerted_${symbol}`;
             const lastAlertTime = sessionStorage.getItem(alertKey);
             const now = Date.now();
 
+            // Интервал 15 минут между алертами
             if (!lastAlertTime || (now - parseInt(lastAlertTime) > 15 * 60 * 1000)) {
                 const dir = changePct > 0 ? "🚀 ПАМП" : "🩸 ДАМП";
                 const type = changePct > 0 ? "alert-up" : "alert-down";
                 
-                showToast(`${dir}: ${symbol.replace('USDT','')}`, `${price} (${changePct > 0 ? '+' : ''}${changePct}%)`, type);
-                
-                if (tg?.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('warning');
-                }
+                showToast(`${dir}: ${symbol.replace('USDT','')}`, `${price} (${changePct > 0 ? '+' : ''}${changePct.toFixed(2)}%)`, type);
                 
                 sessionStorage.setItem(alertKey, now.toString());
             }
