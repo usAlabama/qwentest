@@ -1,0 +1,438 @@
+const tg = window.Telegram?.WebApp;
+if (tg) {
+    tg.ready();
+    tg.expand();
+}
+
+console.log('🚀 Терминал запускается...');
+
+const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
+let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['SOLUSDT', 'TONUSDT', 'DOGEUSDT'];
+const MAX_TOTAL_COINS = 15; 
+
+let currentSymbol = 'BTCUSDT';
+let chart = null;
+let candlestickSeries = null;
+let smaSeries = null;
+let candleHistory = [];
+let klineWs = null;
+let tickerWs = null;
+let prices = {}; 
+let alertsEnabled = localStorage.getItem('amigo_alerts_enabled') === 'true';
+const SMA_PERIOD = 9;
+const CHART_INTERVAL = '15m';
+
+document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
+
+// Проверка загрузки LightweightCharts
+if (typeof LightweightCharts === 'undefined') {
+    console.error('❌ LightweightCharts НЕ загружен! Проверь CDN или интернет.');
+    showToast('Ошибка', 'Библиотека графиков не загрузилась', 'alert-down');
+} else {
+    console.log('✅ LightweightCharts загружен, версия:', LightweightCharts.version);
+}
+
+function renderCoinList() {
+    const container = document.getElementById('coin-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const allCoins = [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS);
+
+    allCoins.forEach(coin => {
+        const isPinned = defaultCoins.includes(coin);
+        const btn = document.createElement('button');
+        btn.className = `coin-btn ${coin === currentSymbol ? 'active' : ''} ${isPinned ? 'pinned' : ''}`;
+        
+        const cleanName = coin.replace('USDT', '');
+        btn.insertAdjacentText('beforeend', cleanName);
+
+        if (!isPinned) {
+            const delBadge = document.createElement('span');
+            delBadge.className = 'btn-del';
+            delBadge.innerHTML = '×';
+            delBadge.onclick = (e) => {
+                e.stopPropagation();
+                removeCoin(coin);
+            };
+            btn.appendChild(delBadge);
+        }
+
+        btn.onclick = () => {
+            if (coin !== currentSymbol) {
+                changePair(coin, btn);
+            }
+        };
+        
+        container.appendChild(btn);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'coin-btn btn-add';
+    addBtn.innerText = '+';
+    addBtn.onclick = addNewCoin;
+    container.appendChild(addBtn);
+
+    initTickerWebSocket(allCoins);
+}
+
+function initChart() {
+    const container = document.getElementById('chart-container');
+    if (!container) {
+        console.error('❌ Контейнер chart-container не найден');
+        return;
+    }
+    
+    console.log('📊 Инициализация графика...');
+    console.log('Размеры контейнера:', container.clientWidth, 'x', container.clientHeight);
+    
+    container.innerHTML = '';
+
+    try {
+        chart = LightweightCharts.createChart(container, {
+            width: container.clientWidth,
+            height: container.clientHeight,
+            layout: {
+                textColor: '#d1d4dc',
+                background: { type: 'solid', color: '#080c10' },
+            },
+            grid: {
+                vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
+                horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
+            },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+            timeScale: {
+                borderColor: 'rgba(197, 203, 206, 0.4)',
+                timeVisible: true,
+                secondsVisible: false,
+            },
+        });
+
+        console.log('✅ График создан');
+
+        candlestickSeries = chart.addCandlestickSeries({
+            upColor: '#00e676', downColor: '#ff5252',
+            borderVisible: false,
+            wickUpColor: '#00e676', wickDownColor: '#ff5252'
+        });
+
+        smaSeries = chart.addLineSeries({
+            color: '#ff9800',
+            lineWidth: 2,
+            title: `SMA ${SMA_PERIOD}`
+        });
+
+        console.log('✅ Серии добавлены');
+
+        const resizeObserver = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            if (width > 0 && height > 0) {
+                chart.resize(width, height);
+                console.log('🔄 Ресайз графика:', width, 'x', height);
+            }
+        });
+        resizeObserver.observe(container);
+    } catch (err) {
+        console.error('❌ Ошибка создания графика:', err);
+        showToast('Ошибка', 'Не удалось создать график', 'alert-down');
+    }
+}
+
+function calculateSMA(data, period) {
+    if (data.length < period) return null;
+    const slice = data.slice(-period);
+    const sum = slice.reduce((acc, c) => acc + c.close, 0);
+    return sum / period;
+}
+
+function buildSmaSeries(history) {
+    const result = [];
+    for (let i = SMA_PERIOD - 1; i < history.length; i++) {
+        const slice = history.slice(i - SMA_PERIOD + 1, i + 1);
+        const sum = slice.reduce((a, c) => a + c.close, 0);
+        result.push({ time: history[i].time, value: sum / SMA_PERIOD });
+    }
+    return result;
+}
+
+async function loadChartHistory(symbol) {
+    console.log(`📥 Загрузка истории для ${symbol}...`);
+    
+    try {
+        const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${CHART_INTERVAL}&limit=300`;
+        console.log('URL запроса:', url);
+        
+        const response = await fetch(url);
+        console.log('Статус ответа:', response.status);
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        console.log(`✅ Получено свечей: ${data.length}`);
+
+        candleHistory = data.map(k => ({
+            time: Math.floor(k[0] / 1000),
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4])
+        }));
+
+        console.log('Первая свеча:', candleHistory[0]);
+        console.log('Последняя свеча:', candleHistory[candleHistory.length - 1]);
+
+        candlestickSeries.setData(candleHistory);
+        smaSeries.setData(buildSmaSeries(candleHistory));
+        chart.timeScale().fitContent();
+
+        console.log(`✅ История загружена и отрисована`);
+        return true;
+    } catch (err) {
+        console.error('❌ Ошибка загрузки истории:', err);
+        showToast('Ошибка', 'Не удалось загрузить историю графика', 'alert-down');
+        return false;
+    }
+}
+
+function initKlineWebSocket(symbol) {
+    if (klineWs) {
+        klineWs.onclose = null;
+        klineWs.close();
+    }
+
+    const intervalMap = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' };
+    const wsInterval = intervalMap[CHART_INTERVAL] || '15m';
+    const socketUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${wsInterval}`;
+    
+    console.log(`🔌 Подключение Kline WS: ${socketUrl}`);
+    
+    klineWs = new WebSocket(socketUrl);
+
+    klineWs.onopen = () => {
+        console.log('✅ Kline WS подключен');
+    };
+
+    klineWs.onmessage = (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            const k = msg.k;
+            if (!k) return;
+
+            const candle = {
+                time: Math.floor(k.t / 1000),
+                open: parseFloat(k.o),
+                high: parseFloat(k.h),
+                low: parseFloat(k.l),
+                close: parseFloat(k.c)
+            };
+
+            candlestickSeries.update(candle);
+
+            const lastHist = candleHistory[candleHistory.length - 1];
+            if (!lastHist || lastHist.time !== candle.time) {
+                candleHistory.push(candle);
+                if (candleHistory.length > 500) candleHistory.shift();
+            } else {
+                candleHistory[candleHistory.length - 1] = candle;
+            }
+
+            const smaValue = calculateSMA(candleHistory, SMA_PERIOD);
+            if (smaValue !== null) {
+                smaSeries.update({ time: candle.time, value: smaValue });
+            }
+        } catch (e) {
+            console.error('Ошибка парсинга kline:', e);
+        }
+    };
+
+    klineWs.onclose = () => {
+        console.log('🔌 Kline WS отключен, переподключение через 3с...');
+        setTimeout(() => {
+            if (currentSymbol === symbol) {
+                initKlineWebSocket(symbol);
+            }
+        }, 3000);
+    };
+
+    klineWs.onerror = (err) => {
+        console.error('❌ Kline WebSocket error', err);
+    };
+}
+
+function initTickerWebSocket(coins) {
+    if (tickerWs) {
+        tickerWs.onclose = null;
+        tickerWs.close();
+    }
+    
+    const streams = coins.map(c => `${c.toLowerCase()}@ticker`).join('/');
+    tickerWs = new WebSocket(`wss://stream.binance.com:9443/ws/${streams}`);
+
+    tickerWs.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (!data || !data.s) return;
+
+            const symbol = data.s;
+            const rawPrice = parseFloat(data.c);
+            const price = rawPrice.toFixed(rawPrice < 1 ? 4 : (rawPrice < 20 ? 3 : 2));
+            const priceChangePercent = parseFloat(data.P); 
+
+            prices[symbol] = price;
+
+            if (symbol === currentSymbol) {
+                const priceEl = document.getElementById('ticker-price');
+                if (priceEl) {
+                    priceEl.innerText = price;
+                    priceEl.className = priceChangePercent >= 0 ? 'price-up' : 'price-down';
+                }
+            }
+
+            if (alertsEnabled) {
+                checkAndFireAlert(symbol, price, priceChangePercent);
+            }
+        } catch (e) {
+            console.error("WS parsing error:", e);
+        }
+    };
+
+    tickerWs.onclose = () => {
+        setTimeout(() => {
+            const activeCoins = [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS);
+            initTickerWebSocket(activeCoins);
+        }, 5000);
+    };
+
+    tickerWs.onerror = (err) => {
+        console.error("Ticker socket error", err);
+    };
+}
+
+async function changePair(symbol, btnElement) {
+    console.log(`\n🔄 Смена пары на ${symbol}`);
+    
+    currentSymbol = symbol;
+    
+    document.querySelectorAll('.coin-btn').forEach(b => b.classList.remove('active'));
+    if (btnElement) {
+        btnElement.classList.add('active');
+    } else {
+        renderCoinList();
+    }
+
+    const displaySym = symbol.replace('USDT', '');
+    document.getElementById('ticker-sym').innerText = displaySym;
+    
+    const cachedPrice = prices[symbol];
+    const priceEl = document.getElementById('ticker-price');
+    priceEl.innerText = cachedPrice ? cachedPrice : '...';
+    priceEl.className = ''; 
+
+    initChart();
+    await loadChartHistory(symbol);
+    initKlineWebSocket(symbol);
+    
+    if (tg?.HapticFeedback) {
+        tg.HapticFeedback.selectionChanged();
+    }
+}
+
+function addNewCoin() {
+    let newCoin = prompt("Введите тикер монеты к USDT (например: XRP, ADA, PEPE):");
+    if (!newCoin) return;
+    
+    newCoin = newCoin.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+    if (!newCoin) return;
+    
+    if (!newCoin.endsWith('USDT') && !newCoin.endsWith('BUSD')) {
+        newCoin += 'USDT';
+    }
+
+    const allCoins = [...new Set([...defaultCoins, ...userCoins])];
+    if (allCoins.length >= MAX_TOTAL_COINS) {
+        showToast("Лимит", `Максимум ${MAX_TOTAL_COINS} монет для стабильности сокета.`, 'alert-down');
+        return;
+    }
+
+    if (!allCoins.includes(newCoin)) {
+        userCoins.push(newCoin);
+        localStorage.setItem('amigo_user_coins', JSON.stringify(userCoins));
+        renderCoinList();
+        showToast("Успешно", `${newCoin.replace('USDT','')} добавлен в список мониторинга`, 'info');
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } else {
+        showToast("Инфо", "Монета уже добавлена в список", "info");
+    }
+}
+
+function removeCoin(coin) {
+    userCoins = userCoins.filter(c => c !== coin);
+    localStorage.setItem('amigo_user_coins', JSON.stringify(userCoins));
+    
+    const alertKey = `alerted_${coin}`;
+    sessionStorage.removeItem(alertKey);
+
+    if (currentSymbol === coin) {
+        changePair(defaultCoins[0]);
+    } else {
+        renderCoinList();
+    }
+    showToast("Удалено", `${coin.replace('USDT','')} успешно извлечен из панели`, 'info');
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+}
+
+function toggleSmartAlerts() {
+    alertsEnabled = !alertsEnabled;
+    localStorage.setItem('amigo_alerts_enabled', alertsEnabled ? 'true' : 'false');
+    
+    const btn = document.getElementById('btn-alerts');
+    btn.classList.toggle('active', alertsEnabled);
+    
+    if (alertsEnabled) {
+        showToast("Smart Alerts", "Мониторинг аномальной волатильности (≥10%) запущен", "info");
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } else {
+        showToast("Smart Alerts", "Мониторинг полностью деактивирован", "info");
+    }
+}
+
+function checkAndFireAlert(symbol, price, changePct) {
+    if (Math.abs(changePct) < 10.0) return;
+
+    const alertKey = `alerted_${symbol}`;
+    const lastAlertTime = sessionStorage.getItem(alertKey);
+    const now = Date.now();
+
+    if (!lastAlertTime || (now - parseInt(lastAlertTime) > 15 * 60 * 1000)) {
+        const dir = changePct > 0 ? "🚀 ПАМП" : "🩸 ДАМП";
+        const type = changePct > 0 ? "alert-up" : "alert-down";
+        
+        showToast(`${dir}: ${symbol.replace('USDT','')}`, `Текущая цена: ${price} (${changePct > 0 ? '+' : ''}${changePct}%)`, type);
+        
+        if (tg?.HapticFeedback) {
+            tg.HapticFeedback.notificationOccurred('warning');
+        }
+        
+        sessionStorage.setItem(alertKey, now.toString());
+    }
+}
+
+function showToast(title, message, type = '') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<div class="toast-title"><span>${title}</span></div><span>${message}</span>`;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.25s ease-out forwards';
+        setTimeout(() => toast.remove(), 250);
+    }, 3500);
+}
+
+renderCoinList();
+changePair(currentSymbol);
