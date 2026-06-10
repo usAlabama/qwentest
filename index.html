@@ -499,7 +499,7 @@
             tg.expand();
         }
 
-        console.log('🚀 Терминал v2.4 запускается...');
+        console.log('🚀 Терминал v2.5 запускается...');
 
         const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
         let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['SOLUSDT', 'TONUSDT', 'DOGEUSDT'];
@@ -535,6 +535,7 @@
         let timeScaleSubscriptions = [];
         let resizeObserver = null;
         let resizeDebounceTimer = null;
+        let isSyncing = false;
         
         const INDICATORS = {
             VWAP: true,
@@ -790,17 +791,15 @@
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { 
-                            mouseWheel: false,
-                            pressedMouseMove: false,
-                            horzTouchDrag: false,
-                            vertTouchDrag: false
+                        handleScroll: {
+                            vertTouchDrag: false,
+                            horzTouchDrag: true,
+                            mouseWheel: true,
                         },
-                        handleScale: { 
-                            mouseWheel: false,
-                            pinch: false,
-                            axisPressedMouseMove: { time: false, price: false },
-                            axisDoubleClickReset: false
+                        handleScale: {
+                            axisPressedMouseMove: { time: true, price: false },
+                            mouseWheel: true,
+                            pinch: true,
                         },
                     });
 
@@ -846,17 +845,15 @@
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { 
-                            mouseWheel: false,
-                            pressedMouseMove: false,
-                            horzTouchDrag: false,
-                            vertTouchDrag: false
+                        handleScroll: {
+                            vertTouchDrag: false,
+                            horzTouchDrag: true,
+                            mouseWheel: true,
                         },
-                        handleScale: { 
-                            mouseWheel: false,
-                            pinch: false,
-                            axisPressedMouseMove: { time: false, price: false },
-                            axisDoubleClickReset: false
+                        handleScale: {
+                            axisPressedMouseMove: { time: true, price: false },
+                            mouseWheel: true,
+                            pinch: true,
                         },
                     });
 
@@ -908,17 +905,15 @@
                             visible: false,
                             borderColor: 'rgba(197, 203, 206, 0.4)',
                         },
-                        handleScroll: { 
-                            mouseWheel: false,
-                            pressedMouseMove: false,
-                            horzTouchDrag: false,
-                            vertTouchDrag: false
+                        handleScroll: {
+                            vertTouchDrag: false,
+                            horzTouchDrag: true,
+                            mouseWheel: true,
                         },
-                        handleScale: { 
-                            mouseWheel: false,
-                            pinch: false,
-                            axisPressedMouseMove: { time: false, price: false },
-                            axisDoubleClickReset: false
+                        handleScale: {
+                            axisPressedMouseMove: { time: true, price: false },
+                            mouseWheel: true,
+                            pinch: true,
                         },
                     });
 
@@ -996,20 +991,24 @@
         function syncTimeScales() {
             const charts = [mainChart, macdChart, rsiChart, adxChart].filter(c => c);
             
-            if (mainChart) {
+            charts.forEach(sourceChart => {
                 const handler = (range) => {
-                    if (range) {
+                    if (range && !isSyncing) {
+                        isSyncing = true;
                         charts.forEach(targetChart => {
-                            if (targetChart !== mainChart) {
+                            if (targetChart !== sourceChart) {
                                 targetChart.timeScale().setVisibleLogicalRange(range);
                             }
                         });
+                        setTimeout(() => {
+                            isSyncing = false;
+                        }, 50);
                     }
                 };
                 
-                mainChart.timeScale().subscribeVisibleLogicalRangeChange(handler);
-                timeScaleSubscriptions.push({ chart: mainChart, handler });
-            }
+                sourceChart.timeScale().subscribeVisibleLogicalRangeChange(handler);
+                timeScaleSubscriptions.push({ chart: sourceChart, handler });
+            });
         }
 
         function calculateVWAP(data) {
