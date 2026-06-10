@@ -191,13 +191,27 @@
             color: #fff;
         }
 
-        /* Контейнеры графиков */
         #charts-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             background-color: var(--bg-dark);
+            scrollbar-width: thin;
+        }
+
+        #charts-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #charts-wrapper::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        #charts-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
         }
 
         .chart-container {
@@ -205,6 +219,7 @@
             position: relative;
             background-color: var(--bg-dark);
             border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         #main-chart {
@@ -213,7 +228,7 @@
         }
 
         .indicator-chart {
-            height: 120px;
+            height: 150px;
         }
 
         .chart-label {
@@ -225,6 +240,9 @@
             font-weight: 600;
             z-index: 5;
             pointer-events: none;
+            background: rgba(8, 12, 16, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
         }
 
         #toast-container {
@@ -295,9 +313,15 @@
 
     <div id="charts-wrapper">
         <div id="main-chart" class="chart-container"></div>
-        <div id="macd-chart" class="chart-container indicator-chart" style="display:none;"></div>
-        <div id="rsi-chart" class="chart-container indicator-chart" style="display:none;"></div>
-        <div id="adx-chart" class="chart-container indicator-chart" style="display:none;"></div>
+        <div id="macd-chart" class="chart-container indicator-chart" style="display:none;">
+            <div class="chart-label">MACD (12, 26, 9)</div>
+        </div>
+        <div id="rsi-chart" class="chart-container indicator-chart" style="display:none;">
+            <div class="chart-label">RSI (14)</div>
+        </div>
+        <div id="adx-chart" class="chart-container indicator-chart" style="display:none;">
+            <div class="chart-label">ADX (14)</div>
+        </div>
     </div>
 
     <div id="toast-container"></div>
@@ -309,7 +333,7 @@
             tg.expand();
         }
 
-        console.log('🚀 Терминал v2.1 запускается...');
+        console.log('🚀 Терминал v2.2 запускается...');
 
         const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
         let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['SOLUSDT', 'TONUSDT', 'DOGEUSDT'];
@@ -318,7 +342,6 @@
         let currentSymbol = 'BTCUSDT';
         let currentInterval = '15m';
         
-        // Графики
         let mainChart = null;
         let candlestickSeries = null;
         let volumeSeries = null;
@@ -343,7 +366,6 @@
         let prices = {}; 
         let alertsEnabled = localStorage.getItem('amigo_alerts_enabled') === 'true';
         
-        // ===== НАСТРОЙКИ ИНДИКАТОРОВ =====
         const INDICATORS = {
             VWAP: true,
             MACD: true,
@@ -351,7 +373,6 @@
             ADX: true
         };
 
-        // ===== ЦВЕТА =====
         const CANDLE_COLORS = {
             UP_COLOR: '#00e676',
             DOWN_COLOR: '#ff5252',
@@ -373,7 +394,6 @@
 
         document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
 
-        // Обработчик интервалов
         document.querySelectorAll('.interval-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const interval = btn.dataset.interval;
@@ -425,10 +445,10 @@
             container.appendChild(addBtn);
         }
 
-        function createChart(container, height = null) {
+        function createMainChart(container) {
             return LightweightCharts.createChart(container, {
                 width: container.clientWidth,
-                height: height || container.clientHeight,
+                height: container.clientHeight,
                 layout: {
                     textColor: '#d1d4dc',
                     background: { type: 'solid', color: '#080c10' },
@@ -450,12 +470,16 @@
                         style: LightweightCharts.LineStyle.Dashed,
                     }
                 },
-                rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.4)' },
+                rightPriceScale: { 
+                    borderColor: 'rgba(197, 203, 206, 0.4)',
+                    visible: true
+                },
                 timeScale: {
                     borderColor: 'rgba(197, 203, 206, 0.4)',
                     timeVisible: true,
                     secondsVisible: false,
                     rightBarStaysOnScroll: true,
+                    visible: true
                 },
                 handleScroll: {
                     vertTouchDrag: false,
@@ -470,27 +494,68 @@
             });
         }
 
+        function createIndicatorChart(container, height = 150) {
+            return LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: height,
+                layout: {
+                    textColor: '#d1d4dc',
+                    background: { type: 'solid', color: '#080c10' },
+                },
+                grid: {
+                    vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
+                },
+                crosshair: { 
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: {
+                        width: 1,
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        style: LightweightCharts.LineStyle.Dashed,
+                    },
+                    horzLine: {
+                        width: 1,
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        style: LightweightCharts.LineStyle.Dashed,
+                    }
+                },
+                rightPriceScale: { 
+                    visible: false
+                },
+                timeScale: {
+                    visible: false
+                },
+                handleScroll: {
+                    vertTouchDrag: false,
+                    horzTouchDrag: true,
+                    mouseWheel: true,
+                },
+                handleScale: {
+                    axisPressedMouseMove: { time: false, price: false },
+                    mouseWheel: true,
+                    pinch: true,
+                },
+            });
+        }
+
         function initCharts() {
             console.log('📊 Инициализация графиков...');
             
-            // Удаляем старые графики
             const mainContainer = document.getElementById('main-chart');
             const macdContainer = document.getElementById('macd-chart');
             const rsiContainer = document.getElementById('rsi-chart');
             const adxContainer = document.getElementById('adx-chart');
             
-            mainContainer.innerHTML = '';
-            macdContainer.innerHTML = '';
-            rsiContainer.innerHTML = '';
-            adxContainer.innerHTML = '';
+            mainContainer.innerHTML = '<div class="chart-label">Свечи + Volume + VWAP</div>';
+            macdContainer.innerHTML = '<div class="chart-label">MACD (12, 26, 9)</div>';
+            rsiContainer.innerHTML = '<div class="chart-label">RSI (14)</div>';
+            adxContainer.innerHTML = '<div class="chart-label">ADX (14)</div>';
 
-            // Показываем/скрываем индикаторы
             macdContainer.style.display = INDICATORS.MACD ? 'block' : 'none';
             rsiContainer.style.display = INDICATORS.RSI ? 'block' : 'none';
             adxContainer.style.display = INDICATORS.ADX ? 'block' : 'none';
 
-            // Главный график (свечи + volume + VWAP)
-            mainChart = createChart(mainContainer);
+            mainChart = createMainChart(mainContainer);
             
             candlestickSeries = mainChart.addCandlestickSeries({
                 upColor: CANDLE_COLORS.UP_COLOR,
@@ -517,9 +582,8 @@
                 });
             }
 
-            // MACD
             if (INDICATORS.MACD) {
-                macdChart = createChart(macdContainer, 120);
+                macdChart = createIndicatorChart(macdContainer, 150);
                 
                 macdHistogramSeries = macdChart.addHistogramSeries({
                     priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
@@ -543,9 +607,8 @@
                 });
             }
 
-            // RSI
             if (INDICATORS.RSI) {
-                rsiChart = createChart(rsiContainer, 120);
+                rsiChart = createIndicatorChart(rsiContainer, 150);
                 
                 rsiSeries = rsiChart.addLineSeries({
                     color: INDICATOR_COLORS.RSI,
@@ -556,9 +619,8 @@
                 });
             }
 
-            // ADX
             if (INDICATORS.ADX) {
-                adxChart = createChart(adxContainer, 120);
+                adxChart = createIndicatorChart(adxContainer, 150);
                 
                 adxSeries = adxChart.addLineSeries({
                     color: INDICATOR_COLORS.ADX,
@@ -585,10 +647,8 @@
                 });
             }
 
-            // Синхронизация скролла между графиками
             syncTimeScales();
 
-            // Ресайз
             const resizeObserver = new ResizeObserver(entries => {
                 entries.forEach(entry => {
                     const { width, height } = entry.contentRect;
@@ -596,11 +656,11 @@
                         if (entry.target.id === 'main-chart' && mainChart) {
                             mainChart.resize(width, height);
                         } else if (entry.target.id === 'macd-chart' && macdChart) {
-                            macdChart.resize(width, 120);
+                            macdChart.resize(width, 150);
                         } else if (entry.target.id === 'rsi-chart' && rsiChart) {
-                            rsiChart.resize(width, 120);
+                            rsiChart.resize(width, 150);
                         } else if (entry.target.id === 'adx-chart' && adxChart) {
-                            adxChart.resize(width, 120);
+                            adxChart.resize(width, 150);
                         }
                     }
                 });
@@ -630,7 +690,6 @@
             });
         }
 
-        // ===== INDICATOR CALCULATIONS =====
         function calculateVWAP(data) {
             let cumulativeTPV = 0;
             let cumulativeVolume = 0;
