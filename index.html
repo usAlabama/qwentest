@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Crypto Terminal Pro</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232962ff'/%3E%3Cstop offset='100%25' stop-color='%2300e676'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' rx='20' width='100' height='100'/%3E%3Ctext x='50' y='68' font-family='Arial' font-weight='bold' font-size='60' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
     <style>
@@ -26,14 +25,13 @@
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
+            margin: 0; padding: 0;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
-            margin: 0;
-            padding: 0;
             height: 100dvh;
             display: flex;
             flex-direction: column;
@@ -41,11 +39,9 @@
             overscroll-behavior: none;
         }
 
-        /* Улучшенные скроллбары */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         header {
             background-color: var(--bg-panel);
@@ -61,241 +57,88 @@
 
         .header-left { display: flex; align-items: center; gap: 16px; }
 
-        .logo {
-            font-weight: 800;
-            font-size: 0.85rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--text-main);
-        }
+        .logo { font-weight: 800; font-size: 0.85rem; letter-spacing: 1px; color: var(--text-main); }
         .logo span { color: var(--accent); }
 
         .price-ticker {
-            font-size: 0.9rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.04);
-            padding: 4px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            min-width: 140px;
-            justify-content: center;
+            font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.04); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); min-width: 140px; justify-content: center;
         }
 
         .price-up { color: var(--up-color); }
         .price-down { color: var(--down-color); }
 
-        .btn-icon {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-        .btn-icon:hover { color: var(--text-main); background: var(--bg-btn-hover); }
-        .btn-icon:active { transform: scale(0.95); }
-        .btn-icon svg { width: 18px; height: 18px; fill: currentColor; }
-        .btn-icon.active { color: #fcc201; }
-
         .controls-row {
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            background: var(--bg-dark);
-            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; flex-shrink: 0; background: var(--bg-dark); border-bottom: 1px solid var(--border);
         }
 
         .horizontal-scroll {
-            display: flex;
-            gap: 6px;
-            padding: 8px 16px;
-            overflow-x: auto;
-            align-items: center;
-            scrollbar-width: none;
+            display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto; align-items: center; scrollbar-width: none;
         }
         .horizontal-scroll::-webkit-scrollbar { display: none; }
 
         .coin-btn, .interval-btn {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            white-space: nowrap;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-muted);
+            border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: all 0.2s;
+            display: inline-flex; align-items: center; justify-content: center;
         }
 
         .coin-btn { padding: 6px 14px; font-size: 0.75rem; position: relative; }
         .interval-btn { padding: 4px 12px; font-size: 0.75rem; }
 
-        .coin-btn:hover, .interval-btn:hover { border-color: var(--text-muted); color: var(--text-main); }
-        
-        .coin-btn.active, .interval-btn.active {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff;
-        }
-
+        .coin-btn.active, .interval-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
         .coin-btn:not(.pinned) { padding-right: 30px; }
         
         .btn-del {
-            position: absolute;
-            right: 4px;
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--text-muted);
-            transition: background 0.2s;
+            position: absolute; right: 4px; width: 20px; height: 20px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--text-muted);
         }
-        .btn-del:hover { background: rgba(255,255,255,0.1); color: #fff; }
-        .coin-btn.active .btn-del { color: rgba(255,255,255,0.8); }
-
-        .btn-add { background: transparent; border: 1px dashed var(--text-muted); padding: 6px 16px; font-size: 1rem; }
-        .btn-add:hover { border-color: var(--text-main); }
 
         #charts-wrapper {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background-color: var(--bg-dark);
-            position: relative;
+            flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+            background-color: var(--bg-dark); position: relative;
         }
 
         .chart-container {
-            width: 100%;
-            position: relative;
-            background-color: var(--bg-dark);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
+            width: 100%; position: relative; background-color: var(--bg-dark);
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
         }
 
         #main-chart { flex-grow: 1; min-height: 350px; }
         .indicator-chart { height: 160px; }
 
         .chart-legend {
-            position: absolute;
-            top: 8px;
-            left: 12px;
-            z-index: 5;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+            position: absolute; top: 8px; left: 12px; z-index: 5; pointer-events: none;
+            display: flex; flex-direction: column; gap: 4px; background: rgba(19, 23, 34, 0.7);
+            padding: 4px 8px; border-radius: 4px;
         }
 
-        .chart-title {
-            font-size: 0.8rem;
-            color: var(--text-main);
-            font-weight: 700;
-            text-shadow: 1px 1px 2px var(--bg-dark);
-        }
-
-        .chart-values {
-            font-size: 0.75rem;
-            display: flex;
-            gap: 8px;
-            font-variant-numeric: tabular-nums;
-            color: var(--text-muted);
-        }
-
-        .val-item span { margin-right: 2px; }
+        .chart-title { font-size: 0.8rem; color: var(--text-main); font-weight: 700; }
+        .chart-values { font-size: 0.75rem; display: flex; gap: 8px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 
         #loading-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(19, 23, 34, 0.8);
-            z-index: 50;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--accent);
-            font-weight: 600;
-            backdrop-filter: blur(2px);
+            position: absolute; inset: 0; background: rgba(19, 23, 34, 0.9); z-index: 50;
+            display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 600;
             transition: opacity 0.3s;
         }
         .hidden { opacity: 0; pointer-events: none; }
 
-        /* Лоадер */
         .spinner {
-            width: 24px; height: 24px;
-            border: 3px solid rgba(41, 98, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--accent);
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
+            width: 24px; height: 24px; border: 3px solid rgba(41, 98, 255, 0.3); border-radius: 50%;
+            border-top-color: var(--accent); animation: spin 1s ease-in-out infinite; margin-right: 10px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        #toast-container {
-            position: fixed;
-            top: 60px;
-            right: 16px;
-            left: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 10000;
-            pointer-events: none;
-        }
-
-        .toast {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-left: 4px solid var(--accent);
-            color: var(--text-main);
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-            animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            pointer-events: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .toast-title { font-weight: 700; }
-        .toast.alert-up { border-left-color: var(--up-color); }
-        .toast.alert-down { border-left-color: var(--down-color); }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: scale(1); }
-            to { opacity: 0; transform: scale(0.9); }
-        }
     </style>
 </head>
 <body>
 
     <header>
         <div class="header-left">
-            <div class="logo">AMIGO<span>.PRO</span></div>
+            <div class="logo">TRADE<span>.CORE</span></div>
             <div class="price-ticker" id="global-ticker">
                 <span id="ticker-sym">BTC</span> <span id="ticker-price">...</span>
             </div>
         </div>
-        <button class="btn-icon" id="btn-alerts" onclick="toggleSmartAlerts()" title="Умные уведомления">
-            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
-        </button>
     </header>
 
     <div class="controls-row">
@@ -311,16 +154,17 @@
     </div>
 
     <div id="charts-wrapper">
-        <div id="loading-overlay"><div class="spinner"></div> Синхронизация...</div>
+        <div id="loading-overlay"><div class="spinner"></div> Загрузка истории...</div>
         
         <div id="main-chart" class="chart-container">
             <div class="chart-legend">
                 <div class="chart-title" id="legend-title">BTCUSDT</div>
                 <div class="chart-values" id="legend-values">
-                    <div class="val-item">O <span id="info-open">-</span></div>
-                    <div class="val-item">H <span id="info-high">-</span></div>
-                    <div class="val-item">L <span id="info-low">-</span></div>
-                    <div class="val-item">C <span id="info-close">-</span></div>
+                    <div>O <span id="info-open">-</span></div>
+                    <div>H <span id="info-high">-</span></div>
+                    <div>L <span id="info-low">-</span></div>
+                    <div>C <span id="info-close">-</span></div>
+                    <div>V <span id="info-vol">-</span></div>
                 </div>
             </div>
         </div>
@@ -332,12 +176,13 @@
         <div id="rsi-chart" class="chart-container indicator-chart">
             <div class="chart-legend"><div class="chart-title">RSI (14)</div></div>
         </div>
+
+        <div id="adx-chart" class="chart-container indicator-chart">
+            <div class="chart-legend"><div class="chart-title">ADX (14)</div></div>
+        </div>
     </div>
 
-    <div id="toast-container"></div>
-
     <script>
-        // Инициализация Telegram WebApp
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.ready();
@@ -346,36 +191,29 @@
             tg.setBackgroundColor('#131722');
         }
 
-        // Конфигурация приложения
-        const MAX_CANDLES = 400;
-        const defaultCoins = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
-        let userCoins = JSON.parse(localStorage.getItem('amigo_user_coins')) || ['BNBUSDT', 'TONUSDT', 'DOGEUSDT', 'PEPEUSDT'];
-        const MAX_TOTAL_COINS = 12;
+        const MAX_CANDLES = 1000; // Увеличен лимит для отображения глубокой истории
+        const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
+        let userCoins = ['SOLUSDT', 'TONUSDT', 'PEPEUSDT'];
         
         let currentSymbol = 'BTCUSDT';
         let currentInterval = '15m';
-        let alertsEnabled = localStorage.getItem('amigo_alerts_enabled') === 'true';
 
-        // Состояния графиков
-        const charts = { main: null, macd: null, rsi: null };
+        // Глобальные переменные графиков
+        const charts = { main: null, macd: null, rsi: null, adx: null };
         const series = {};
         let candleHistory = [];
         let prices = {};
         
-        // WebSockets
         let klineWs = null;
         let tickerWs = null;
         let resizeObserver = null;
 
-        // Палитра (TradingView Style)
         const COLORS = {
-            up: '#089981', down: '#f23645',
-            bg: '#131722', grid: '#2a2e39', text: '#787b86',
-            macdLine: '#2962ff', signalLine: '#ff6d00',
-            rsiLine: '#9c27b0', vwapLine: '#fcc201'
+            up: '#089981', down: '#f23645', bg: '#131722', grid: '#2a2e39', text: '#787b86',
+            macdLine: '#2962ff', signalLine: '#ff6d00', rsiLine: '#9c27b0', vwapLine: '#fcc201',
+            adx: '#2962ff', pdi: '#089981', ndi: '#f23645'
         };
 
-        // Вспомогательные функции
         function formatPrice(price) {
             if (price < 0.0001) return price.toPrecision(4);
             if (price < 1) return price.toFixed(4);
@@ -387,11 +225,11 @@
             document.getElementById('loading-overlay').classList.toggle('hidden', !show);
         }
 
-        // UI Логика
+        // Рендер UI
         function renderCoinList() {
             const container = document.getElementById('coin-list');
             container.innerHTML = '';
-            const allCoins = [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS);
+            const allCoins = [...new Set([...defaultCoins, ...userCoins])];
 
             allCoins.forEach(coin => {
                 const isPinned = defaultCoins.includes(coin);
@@ -399,25 +237,9 @@
                 btn.className = `coin-btn ${coin === currentSymbol ? 'active' : ''} ${isPinned ? 'pinned' : ''}`;
                 btn.innerText = coin.replace('USDT', '');
 
-                if (!isPinned) {
-                    const del = document.createElement('span');
-                    del.className = 'btn-del';
-                    del.innerHTML = '×';
-                    del.onclick = (e) => { e.stopPropagation(); removeCoin(coin); };
-                    btn.appendChild(del);
-                }
-
                 btn.onclick = () => { if (coin !== currentSymbol) changePair(coin); };
                 container.appendChild(btn);
             });
-
-            if (allCoins.length < MAX_TOTAL_COINS) {
-                const addBtn = document.createElement('button');
-                addBtn.className = 'coin-btn btn-add';
-                addBtn.innerText = '+';
-                addBtn.onclick = addNewCoin;
-                container.appendChild(addBtn);
-            }
         }
 
         document.querySelectorAll('.interval-btn').forEach(btn => {
@@ -427,93 +249,115 @@
             });
         });
 
-        // Работа с графиками (Управление жизненным циклом)
+        // ==========================================
+        // ИНИЦИАЛИЗАЦИЯ И СИНХРОНИЗАЦИЯ ГРАФИКОВ
+        // ==========================================
         function destroyCharts() {
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-                resizeObserver = null;
-            }
-            if (charts.main) { charts.main.remove(); charts.main = null; }
-            if (charts.macd) { charts.macd.remove(); charts.macd = null; }
-            if (charts.rsi) { charts.rsi.remove(); charts.rsi = null; }
+            if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+            Object.values(charts).forEach(c => { if (c) c.remove(); });
+            charts.main = charts.macd = charts.rsi = charts.adx = null;
             Object.keys(series).forEach(key => delete series[key]);
         }
 
         function initCharts() {
             destroyCharts();
             
-            const mainContainer = document.getElementById('main-chart');
-            const macdContainer = document.getElementById('macd-chart');
-            const rsiContainer = document.getElementById('rsi-chart');
+            const containers = {
+                main: document.getElementById('main-chart'),
+                macd: document.getElementById('macd-chart'),
+                rsi: document.getElementById('rsi-chart'),
+                adx: document.getElementById('adx-chart')
+            };
 
             const commonOptions = {
                 layout: { textColor: COLORS.text, background: { type: 'solid', color: COLORS.bg } },
                 grid: { vertLines: { color: COLORS.grid }, horzLines: { color: COLORS.grid } },
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                timeScale: { borderColor: COLORS.grid, timeVisible: true }
+                timeScale: { borderColor: COLORS.grid, timeVisible: true, rightOffset: 5 }
             };
 
-            // Главный график
-            charts.main = LightweightCharts.createChart(mainContainer, {
+            // 1. Главный график
+            charts.main = LightweightCharts.createChart(containers.main, {
                 ...commonOptions,
-                watermark: { visible: true, fontSize: 48, horzAlign: 'center', vertAlign: 'center', color: 'rgba(255, 255, 255, 0.03)', text: currentSymbol },
-                rightPriceScale: { borderColor: COLORS.grid, scaleMargins: { top: 0.1, bottom: 0.2 } },
+                rightPriceScale: { borderColor: COLORS.grid, scaleMargins: { top: 0.1, bottom: 0.25 } }
             });
 
             series.candle = charts.main.addCandlestickSeries({
                 upColor: COLORS.up, downColor: COLORS.down, borderVisible: false,
-                wickUpColor: COLORS.up, wickDownColor: COLORS.down,
-                priceFormat: { type: 'price', precision: 4, minMove: 0.0001 } // Будет обновлено динамически
+                wickUpColor: COLORS.up, wickDownColor: COLORS.down
             });
 
+            // ОБЪЕМЫ: Отдельная шкала для масштабирования снизу
+            charts.main.priceScale('volume').applyOptions({
+                scaleMargins: { top: 0.8, bottom: 0 },
+                visible: false // Скрываем цифры оси для объемов
+            });
             series.volume = charts.main.addHistogramSeries({
-                color: '#26a69a', priceFormat: { type: 'volume' },
-                priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 }
+                priceScaleId: 'volume',
+                color: '#26a69a'
             });
 
             series.vwap = charts.main.addLineSeries({
                 color: COLORS.vwapLine, lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false
             });
 
-            // MACD
-            charts.macd = LightweightCharts.createChart(macdContainer, {
-                ...commonOptions, timeScale: { visible: false }, rightPriceScale: { borderColor: COLORS.grid }
-            });
+            // 2. Индикаторы (Без отображения шкалы времени снизу)
+            const indOptions = { ...commonOptions, timeScale: { visible: false } };
+
+            charts.macd = LightweightCharts.createChart(containers.macd, indOptions);
             series.macdHist = charts.macd.addHistogramSeries({ priceScaleId: '' });
             series.macdLine = charts.macd.addLineSeries({ color: COLORS.macdLine, lineWidth: 2 });
             series.macdSignal = charts.macd.addLineSeries({ color: COLORS.signalLine, lineWidth: 2 });
 
-            // RSI
-            charts.rsi = LightweightCharts.createChart(rsiContainer, {
-                ...commonOptions, timeScale: { visible: false }, rightPriceScale: { borderColor: COLORS.grid }
-            });
+            charts.rsi = LightweightCharts.createChart(containers.rsi, indOptions);
             series.rsi = charts.rsi.addLineSeries({ color: COLORS.rsiLine, lineWidth: 2 });
             series.rsi.createPriceLine({ price: 70, color: 'rgba(242, 54, 69, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
             series.rsi.createPriceLine({ price: 30, color: 'rgba(8, 153, 129, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
 
-            // Синхронизация масштаба
+            charts.adx = LightweightCharts.createChart(containers.adx, indOptions);
+            series.adx = charts.adx.addLineSeries({ color: COLORS.adx, lineWidth: 2 });
+            series.pdi = charts.adx.addLineSeries({ color: COLORS.pdi, lineWidth: 1 });
+            series.ndi = charts.adx.addLineSeries({ color: COLORS.ndi, lineWidth: 1 });
+
+            // 3. ЖЕСТКАЯ СИНХРОНИЗАЦИЯ (Ось времени)
+            // Использование LogicalRange обеспечивает точную привязку свеча-к-свече
+            const chartInstances = [charts.main, charts.macd, charts.rsi, charts.adx];
             let isSyncing = false;
-            const syncHandler = (sourceChart, targetCharts) => {
-                sourceChart.timeScale().subscribeVisibleTimeRangeChange(range => {
+
+            chartInstances.forEach(sourceChart => {
+                sourceChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
                     if (isSyncing || !range) return;
                     isSyncing = true;
-                    targetCharts.forEach(c => c.timeScale().setVisibleRange(range));
+                    chartInstances.forEach(targetChart => {
+                        if (targetChart !== sourceChart) {
+                            targetChart.timeScale().setVisibleLogicalRange(range);
+                        }
+                    });
                     isSyncing = false;
                 });
-            };
-            syncHandler(charts.main, [charts.macd, charts.rsi]);
-            syncHandler(charts.macd, [charts.main, charts.rsi]);
-            syncHandler(charts.rsi, [charts.main, charts.macd]);
-
-            // Обновление легенды
-            charts.main.subscribeCrosshairMove(param => {
-                if (param.time && param.seriesData.get(series.candle)) {
-                    const data = param.seriesData.get(series.candle);
-                    updateLegend(data);
-                } else if (candleHistory.length > 0) {
-                    updateLegend(candleHistory[candleHistory.length - 1]);
-                }
             });
+
+            // 4. СИНХРОНИЗАЦИЯ КУРСОРА (Crosshair)
+            function syncCrosshair(sourceChart, targetCharts) {
+                sourceChart.subscribeCrosshairMove(param => {
+                    if (!param.time) {
+                        targetCharts.forEach(c => c.clearCrosshairPosition());
+                        return;
+                    }
+                    const dataPoint = param.seriesData.get(series.candle);
+                    if (dataPoint) updateLegend(dataPoint);
+                    
+                    targetCharts.forEach(c => {
+                        // Эмулируем движение перекрестия на других графиках
+                        c.setCrosshairPosition(param.seriesPrices.get(series.candle) || 0, param.time, series.candle);
+                    });
+                });
+            }
+
+            syncCrosshair(charts.main, [charts.macd, charts.rsi, charts.adx]);
+            syncCrosshair(charts.macd, [charts.main, charts.rsi, charts.adx]);
+            syncCrosshair(charts.rsi, [charts.main, charts.macd, charts.adx]);
+            syncCrosshair(charts.adx, [charts.main, charts.macd, charts.rsi]);
 
             // Resize Observer
             resizeObserver = new ResizeObserver(entries => {
@@ -524,83 +368,71 @@
                             if (entry.target.id === 'main-chart') charts.main.applyOptions({ width, height });
                             if (entry.target.id === 'macd-chart') charts.macd.applyOptions({ width, height });
                             if (entry.target.id === 'rsi-chart') charts.rsi.applyOptions({ width, height });
+                            if (entry.target.id === 'adx-chart') charts.adx.applyOptions({ width, height });
                         }
                     });
                 });
             });
-            resizeObserver.observe(mainContainer);
-            resizeObserver.observe(macdContainer);
-            resizeObserver.observe(rsiContainer);
+            Object.values(containers).forEach(c => resizeObserver.observe(c));
         }
 
         function updateLegend(data) {
-            const format = (val) => formatPrice(val);
+            if (!data) return;
             const color = data.close >= data.open ? COLORS.up : COLORS.down;
             document.getElementById('legend-title').innerText = `${currentSymbol} • ${currentInterval}`;
             
-            ['open', 'high', 'low', 'close'].forEach(type => {
-                const el = document.getElementById(`info-${type}`);
-                el.innerText = format(data[type]);
-                el.style.color = color;
-            });
-        }
-
-        function applyDynamicFormatting(samplePrice) {
-            let precision = 2;
-            let minMove = 0.01;
+            document.getElementById('info-open').innerText = formatPrice(data.open);
+            document.getElementById('info-high').innerText = formatPrice(data.high);
+            document.getElementById('info-low').innerText = formatPrice(data.low);
+            document.getElementById('info-close').innerText = formatPrice(data.close);
+            document.getElementById('info-vol').innerText = data.volume ? data.volume.toFixed(2) : '0';
             
-            if (samplePrice < 0.0001) { precision = 8; minMove = 0.00000001; }
-            else if (samplePrice < 0.01) { precision = 6; minMove = 0.000001; }
-            else if (samplePrice < 1) { precision = 4; minMove = 0.0001; }
-            else if (samplePrice < 50) { precision = 3; minMove = 0.001; }
-
-            series.candle.applyOptions({
-                priceFormat: { type: 'price', precision, minMove }
+            ['open', 'high', 'low', 'close', 'vol'].forEach(type => {
+                document.getElementById(`info-${type}`).style.color = color;
             });
         }
 
-        // Математика индикаторов (Оптимизированная)
+        // ==========================================
+        // МАТЕМАТИКА ИНДИКАТОРОВ
+        // ==========================================
         function calculateIndicators(data) {
             const vwap = [], macdLine = [], signalLine = [], hist = [], rsi = [];
-            if (data.length === 0) return { vwap, macd: { macdLine, signalLine, hist }, rsi };
-
-            // VWAP
-            let sumTPV = 0, sumVol = 0;
+            const adx = [], pdi = [], ndi = [];
             
-            // EMA для MACD
+            if (data.length === 0) return { vwap, macd: { macdLine, signalLine, hist }, rsi, adx: { adx, pdi, ndi } };
+
+            let sumTPV = 0, sumVol = 0;
             const k12 = 2 / 13, k26 = 2 / 27, k9 = 2 / 10;
             let ema12 = data[0].close, ema26 = data[0].close, emaSignal = 0;
-
-            // RSI
             let gains = 0, losses = 0, avgGain = 0, avgLoss = 0;
+            
+            // Для ADX
+            let trSum = 0, plusDmSum = 0, minusDmSum = 0;
+            let avgTr = 0, avgPlusDm = 0, avgMinusDm = 0;
 
             for (let i = 0; i < data.length; i++) {
                 const c = data[i];
+                const prev = i > 0 ? data[i-1] : c;
                 
-                // 1. VWAP
+                // VWAP
                 sumTPV += ((c.high + c.low + c.close) / 3) * c.volume;
                 sumVol += c.volume;
                 vwap.push({ time: c.time, value: sumVol ? sumTPV / sumVol : c.close });
 
-                // 2. MACD
+                // MACD
                 ema12 = (c.close - ema12) * k12 + ema12;
                 ema26 = (c.close - ema26) * k26 + ema26;
                 const macdVal = ema12 - ema26;
-                macdLine.push({ time: c.time, value: macdVal });
-                
                 if (i === 0) emaSignal = macdVal;
                 else emaSignal = (macdVal - emaSignal) * k9 + emaSignal;
                 
+                macdLine.push({ time: c.time, value: macdVal });
                 signalLine.push({ time: c.time, value: emaSignal });
-                hist.push({ 
-                    time: c.time, 
-                    value: macdVal - emaSignal,
-                    color: (macdVal - emaSignal) >= 0 ? 'rgba(8, 153, 129, 0.8)' : 'rgba(242, 54, 69, 0.8)'
-                });
+                hist.push({ time: c.time, value: macdVal - emaSignal, color: (macdVal - emaSignal) >= 0 ? 'rgba(8, 153, 129, 0.8)' : 'rgba(242, 54, 69, 0.8)' });
 
-                // 3. RSI
+                // RSI (14)
                 if (i > 0) {
-                    const change = c.close - data[i-1].close;
+                    const change = c.close - prev.close;
                     if (i <= 14) {
                         if (change > 0) gains += change; else losses -= change;
                         if (i === 14) { avgGain = gains/14; avgLoss = losses/14; }
@@ -613,9 +445,40 @@
                     const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
                     rsi.push({ time: c.time, value: 100 - (100 / (1 + rs)) });
                 }
+
+                // ADX (14)
+                if (i > 0) {
+                    const tr = Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
+                    const upMove = c.high - prev.high;
+                    const downMove = prev.low - c.low;
+                    const plusDm = (upMove > downMove && upMove > 0) ? upMove : 0;
+                    const minusDm = (downMove > upMove && downMove > 0) ? downMove : 0;
+
+                    if (i <= 14) {
+                        trSum += tr; plusDmSum += plusDm; minusDmSum += minusDm;
+                        if (i === 14) { avgTr = trSum/14; avgPlusDm = plusDmSum/14; avgMinusDm = minusDmSum/14; }
+                    } else {
+                        avgTr = avgTr - (avgTr/14) + tr;
+                        avgPlusDm = avgPlusDm - (avgPlusDm/14) + plusDm;
+                        avgMinusDm = avgMinusDm - (avgMinusDm/14) + minusDm;
+                    }
+
+                    if (i >= 14) {
+                        const diPlus = avgTr > 0 ? (avgPlusDm / avgTr) * 100 : 0;
+                        const diMinus = avgTr > 0 ? (avgMinusDm / avgTr) * 100 : 0;
+                        const dx = (diPlus + diMinus) > 0 ? Math.abs(diPlus - diMinus) / (diPlus + diMinus) * 100 : 0;
+                        
+                        // Сглаживание ADX (упрощенное)
+                        const currentAdx = adx.length === 0 ? dx : (adx[adx.length-1].value * 13 + dx) / 14;
+                        
+                        adx.push({ time: c.time, value: currentAdx });
+                        pdi.push({ time: c.time, value: diPlus });
+                        ndi.push({ time: c.time, value: diMinus });
+                    }
+                }
             }
 
-            return { vwap, macd: { macdLine, signalLine, hist }, rsi };
+            return { vwap, macd: { macdLine, signalLine, hist }, rsi, adx: { adx, pdi, ndi } };
         }
 
         function updateAllSeries() {
@@ -625,14 +488,20 @@
             })));
 
             const inds = calculateIndicators(candleHistory);
+            
             series.vwap.setData(inds.vwap);
             series.macdLine.setData(inds.macd.macdLine);
             series.macdSignal.setData(inds.macd.signalLine);
             series.macdHist.setData(inds.macd.hist);
             series.rsi.setData(inds.rsi);
+            series.adx.setData(inds.adx.adx);
+            series.pdi.setData(inds.adx.pdi);
+            series.ndi.setData(inds.adx.ndi);
         }
 
-        // Загрузка истории
+        // ==========================================
+        // API ЗАПРОСЫ И ВЕБСОКЕТЫ
+        // ==========================================
         async function loadHistory() {
             showLoading(true);
             try {
@@ -647,18 +516,25 @@
                 }));
 
                 if(candleHistory.length > 0) {
-                    applyDynamicFormatting(candleHistory[candleHistory.length-1].close);
+                    // Динамическая точность шкалы цены
+                    const sample = candleHistory[candleHistory.length-1].close;
+                    let prec = 2, minM = 0.01;
+                    if (sample < 0.0001) { prec = 8; minM = 0.00000001; }
+                    else if (sample < 0.01) { prec = 6; minM = 0.000001; }
+                    else if (sample < 1) { prec = 4; minM = 0.0001; }
+                    
+                    series.candle.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: minM } });
+
                     updateAllSeries();
                     charts.main.timeScale().fitContent();
                     updateLegend(candleHistory[candleHistory.length - 1]);
                 }
             } catch (err) {
-                showToast('Ошибка API', 'Не удалось загрузить график', 'alert-down');
+                console.error("Ошибка загрузки истории", err);
             }
             showLoading(false);
         }
 
-        // WebSockets Управление
         function initKlineWS() {
             if (klineWs) { klineWs.onclose = null; klineWs.close(); }
             klineWs = new WebSocket(`wss://stream.binance.com:9443/ws/${currentSymbol.toLowerCase()}@kline_${currentInterval}`);
@@ -668,53 +544,52 @@
                 if (!msg.k) return;
                 const k = msg.k;
                 const candle = {
-                    time: Math.floor(k.t / 1000),
-                    open: parseFloat(k.o), high: parseFloat(k.h),
+                    time: Math.floor(k.t / 1000), open: parseFloat(k.o), high: parseFloat(k.h),
                     low: parseFloat(k.l), close: parseFloat(k.c), volume: parseFloat(k.v)
                 };
 
                 const lastHist = candleHistory[candleHistory.length - 1];
-                let isNew = false;
 
                 if (!lastHist || lastHist.time !== candle.time) {
                     candleHistory.push(candle);
                     if (candleHistory.length > MAX_CANDLES) candleHistory.shift();
-                    isNew = true;
                 } else {
                     candleHistory[candleHistory.length - 1] = candle;
                 }
 
-                // Обновляем график
+                // Быстрое обновление графика и объемов
                 series.candle.update(candle);
                 series.volume.update({
                     time: candle.time, value: candle.volume, 
                     color: candle.close >= candle.open ? 'rgba(8, 153, 129, 0.5)' : 'rgba(242, 54, 69, 0.5)'
                 });
                 
-                // Эффективное обновление индикаторов
+                // Пересчет индикаторов (только для последних значений, чтобы не нагружать процессор)
                 const inds = calculateIndicators(candleHistory);
-                const lastIdx = candleHistory.length - 1;
+                const l = candleHistory.length - 1;
                 
-                if (inds.vwap.length > 0) series.vwap.update(inds.vwap[lastIdx]);
+                if (inds.vwap.length > 0) series.vwap.update(inds.vwap[inds.vwap.length-1]);
                 if (inds.macd.macdLine.length > 0) {
-                    series.macdLine.update(inds.macd.macdLine[lastIdx]);
-                    series.macdSignal.update(inds.macd.signalLine[lastIdx]);
-                    series.macdHist.update(inds.macd.hist[lastIdx]);
+                    series.macdLine.update(inds.macd.macdLine[inds.macd.macdLine.length-1]);
+                    series.macdSignal.update(inds.macd.signalLine[inds.macd.signalLine.length-1]);
+                    series.macdHist.update(inds.macd.hist[inds.macd.hist.length-1]);
                 }
-                if (inds.rsi.length > 0) {
-                    // RSI запаздывает на 14 периодов в расчете массива, берем последний из массива RSI
-                    series.rsi.update(inds.rsi[inds.rsi.length - 1]);
+                if (inds.rsi.length > 0) series.rsi.update(inds.rsi[inds.rsi.length-1]);
+                if (inds.adx.adx.length > 0) {
+                    series.adx.update(inds.adx.adx[inds.adx.adx.length-1]);
+                    series.pdi.update(inds.adx.pdi[inds.adx.pdi.length-1]);
+                    series.ndi.update(inds.adx.ndi[inds.adx.ndi.length-1]);
                 }
 
                 updateLegend(candle);
             };
 
-            klineWs.onclose = () => setTimeout(initKlineWS, 3000); // Авто-реконнект
+            klineWs.onclose = () => setTimeout(initKlineWS, 3000);
         }
 
         function initTickerWS() {
             if (tickerWs) { tickerWs.onclose = null; tickerWs.close(); }
-            const allCoins = [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS);
+            const allCoins = [...new Set([...defaultCoins, ...userCoins])];
             const streams = allCoins.map(c => `${c.toLowerCase()}@ticker`).join('/');
             
             tickerWs = new WebSocket(`wss://stream.binance.com:9443/ws/${streams}`);
@@ -732,15 +607,13 @@
                     priceEl.innerText = formatPrice(price);
                     priceEl.className = pct >= 0 ? 'price-up' : 'price-down';
                 }
-
-                if (alertsEnabled && Math.abs(pct) >= 3.0) {
-                    fireAlert(sym, price, pct);
-                }
             };
             tickerWs.onclose = () => setTimeout(initTickerWS, 5000);
         }
 
-        // Действия пользователя
+        // ==========================================
+        // ЛОГИКА ИНТЕРФЕЙСА
+        // ==========================================
         async function changePair(symbol) {
             currentSymbol = symbol;
             document.getElementById('ticker-sym').innerText = symbol.replace('USDT', '');
@@ -762,67 +635,7 @@
             initKlineWS();
         }
 
-        function addNewCoin() {
-            let val = prompt("Тикер монеты (напр. SOL, XRP):");
-            if (!val) return;
-            val = val.toUpperCase().trim();
-            if (!val.endsWith('USDT')) val += 'USDT';
-
-            const allCoins = [...new Set([...defaultCoins, ...userCoins])];
-            if (allCoins.length >= MAX_TOTAL_COINS) {
-                showToast("Лимит", `Максимум ${MAX_TOTAL_COINS} монет.`, 'alert-down');
-                return;
-            }
-            if (!allCoins.includes(val)) {
-                userCoins.push(val);
-                localStorage.setItem('amigo_user_coins', JSON.stringify(userCoins));
-                renderCoinList();
-                initTickerWS(); // Рестарт сокетов для подписки на новую монету
-                showToast("Добавлено", `${val.replace('USDT','')} в списке`, 'alert-up');
-            }
-        }
-
-        function removeCoin(coin) {
-            userCoins = userCoins.filter(c => c !== coin);
-            localStorage.setItem('amigo_user_coins', JSON.stringify(userCoins));
-            if (currentSymbol === coin) changePair(defaultCoins[0]);
-            else renderCoinList();
-            initTickerWS();
-        }
-
-        // Уведомления
-        function toggleSmartAlerts() {
-            alertsEnabled = !alertsEnabled;
-            localStorage.setItem('amigo_alerts_enabled', alertsEnabled);
-            document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
-            showToast("Smart Alerts", alertsEnabled ? "Мониторинг волатильности включен" : "Оповещения отключены");
-        }
-        document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
-
-        function fireAlert(sym, price, pct) {
-            const key = `alert_${sym}`;
-            const last = sessionStorage.getItem(key);
-            if (!last || (Date.now() - parseInt(last) > 900000)) { // 15 минут кулдаун на монету
-                const dir = pct > 0 ? "🚀 ПАМП" : "🩸 ДАМП";
-                showToast(`${dir} ${sym.replace('USDT','')}`, `Цена: ${formatPrice(price)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)`, pct > 0 ? 'alert-up' : 'alert-down');
-                if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(pct > 0 ? 'success' : 'error');
-                sessionStorage.setItem(key, Date.now().toString());
-            }
-        }
-
-        function showToast(title, msg, type = '') {
-            const cont = document.getElementById('toast-container');
-            const el = document.createElement('div');
-            el.className = `toast ${type}`;
-            el.innerHTML = `<div class="toast-title">${title}</div><div>${msg}</div>`;
-            cont.appendChild(el);
-            setTimeout(() => {
-                el.style.animation = 'fadeOut 0.3s forwards';
-                setTimeout(() => el.remove(), 300);
-            }, 3000);
-        }
-
-        // Старт приложения
+        // Старт
         renderCoinList();
         changePair(currentSymbol);
         initTickerWS();
