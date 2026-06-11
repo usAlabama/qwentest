@@ -111,12 +111,12 @@
         #charts-wrapper {
             flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
             background-color: var(--bg-dark); position: relative; padding-bottom: var(--safe-bottom);
-            overscroll-behavior-y: contain; /* Запрещает pull-to-refresh, но разрешает внутренний скролл */
+            -webkit-overflow-scrolling: touch;
         }
         .chart-container { width: 100%; position: relative; border-bottom: 1px solid var(--border); flex-shrink: 0; }
         
         /* ПОРЯДОК ГРАФИКОВ (Защита от прыжков) */
-        #main-chart { flex-grow: 1; min-height: 350px; order: 1; }
+        #main-chart { flex-grow: 1; min-height: 380px; order: 1; }
         #macd-chart { height: 160px; order: 2; display: none; }
         #rsi-chart  { height: 160px; order: 3; display: none; }
         #adx-chart  { height: 160px; order: 4; display: none; }
@@ -234,7 +234,7 @@
 (function () {
     'use strict';
 
-    // TWA
+    // TWA Init
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#1e222d'); tg.setBackgroundColor('#131722'); }
 
@@ -257,7 +257,7 @@
 
     const C = {
         up: '#089981', down: '#f23645', bg: '#131722', grid: 'rgba(42, 46, 57, 0.5)', text: '#787b86',
-        vwap: '#fcc201', macd: '#2962ff', signal: '#ff6d00', histUp: 'rgba(8,153,129,0.85)', histDown: 'rgba(242,54,69,0.85)',
+        vwap: '#0000ff', macd: '#2962ff', signal: '#ff6d00', histUp: 'rgba(8,153,129,0.85)', histDown: 'rgba(242,54,69,0.85)',
         rsi: '#9c27b0', adx: '#2962ff', pdi: '#089981', ndi: '#f23645',
     };
 
@@ -342,7 +342,6 @@
                 b.classList.toggle('active', indicatorVis[ind]);
                 localStorage.setItem('amigo_inds', JSON.stringify(indicatorVis));
                 
-                // Исправление логики переключения
                 if (ind === 'VWAP') {
                     if (series.vwap) series.vwap.applyOptions({ visible: indicatorVis.VWAP });
                 } else {
@@ -372,10 +371,8 @@
                                      : `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
                 }
             },
-            // Идеальное управление тапами для мобильных: свайп по графику скроллит страницу, по шкале — масштабирует.
             handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
-            handleScale: { axisPressedMouseMove: { time: true, price: true }, pinch: true, mouseWheel: true },
-            kinetics: { touch: true, mouse: true }
+            handleScale: { axisPressedMouseMove: { time: true, price: true }, pinch: true, mouseWheel: true }
         };
 
         const indOpts = {
@@ -384,44 +381,80 @@
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal, horzLine: { visible: false, labelVisible: false }, vertLine: { width: 1, color: 'rgba(255,255,255,0.25)', style: LightweightCharts.LineStyle.Dashed } }
         };
 
-        // MAIN
+        // --- MAIN CHART ---
         charts.main = LightweightCharts.createChart(document.getElementById('main-chart'), {
             ...common, 
-            // Свечи занимают верхние 82%
-            rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.05, bottom: 0.18 } },
+            rightPriceScale: { 
+                borderColor: C.grid, 
+                scaleMargins: { top: 0.05, bottom: 0.25 }, // Свечи доходят максимум до 25% от низа (Не пересекают объемы)
+                minimumWidth: 60 // ИДЕАЛЬНО ДЛЯ МОБИЛОК: Увеличенная ширина для удобного скролла оси
+            },
             crosshair: { vertLine: indOpts.crosshair.vertLine, horzLine: indOpts.crosshair.vertLine }
         });
         
         series.candle = charts.main.addCandlestickSeries({ upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down });
 
-        // Исправление зазоров: объемы строго в нижних 18%, масштабируются автоматически
-        charts.main.priceScale('volume').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false, autoScale: true });
-        series.volume = charts.main.addHistogramSeries({ priceScaleId: 'volume', priceFormat: { type: 'volume' } });
+        // --- VOLUME ---
+        charts.main.priceScale('volume').applyOptions({
+            scaleMargins: { top: 0.8, bottom: 0 }, // Объемы лежат строго в нижних 20%
+            visible: false
+        });
+        series.volume = charts.main.addHistogramSeries({ 
+            priceScaleId: 'volume', 
+            priceFormat: { type: 'volume' } 
+        });
+        // Прибиваем объемы к 0. Убираем "пустое пространство" и бары "до неба"
+        series.volume.applyOptions({
+            autoscaleInfoProvider: (original) => {
+                const res = original();
+                if (res !== null) res.priceRange.minValue = 0;
+                return res;
+            }
+        });
         
-        series.vwap = charts.main.addLineSeries({ color: C.vwap, lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: indicatorVis.VWAP });
+        // --- VWAP ---
+        series.vwap = charts.main.addLineSeries({ 
+            color: C.vwap, lineWidth: 1, 
+            crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false
+        });
+        series.vwap.applyOptions({ visible: indicatorVis.VWAP }); // Четкая синхронизация кнопки и линии
 
-        // MACD
-        charts.macd = LightweightCharts.createChart(document.getElementById('macd-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 } } });
+        // --- MACD ---
+        charts.macd = LightweightCharts.createChart(document.getElementById('macd-chart'), { 
+            ...indOpts, 
+            rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 }, minimumWidth: 60 } 
+        });
         series.macdHist = charts.macd.addHistogramSeries({ priceScaleId: '' });
         series.macdLine = charts.macd.addLineSeries({ color: C.macd, lineWidth: 2, priceLineVisible: false });
         series.macdSignal = charts.macd.addLineSeries({ color: C.signal, lineWidth: 2, priceLineVisible: false });
-        series.macdHist.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.1)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true });
+        // Добавлен axisLabelVisible: true для совпадения со шкалой
+        series.macdHist.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.2)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true });
 
-        // RSI
-        charts.rsi = LightweightCharts.createChart(document.getElementById('rsi-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 } } });
+        // --- RSI ---
+        charts.rsi = LightweightCharts.createChart(document.getElementById('rsi-chart'), { 
+            ...indOpts, 
+            rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 }, minimumWidth: 60 } 
+        });
         series.rsi = charts.rsi.addLineSeries({ color: C.rsi, lineWidth: 2, priceLineVisible: false });
+        // Жесткая фиксация RSI от 0 до 100
         series.rsi.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
-        // Явные метки axisLabelVisible = true решают проблему несовпадения с сеткой
-        [30, 50, 70].forEach(p => series.rsi.createPriceLine({ price: p, color: p===50?'rgba(120,123,134,0.3)':(p>50?'rgba(242,54,69,0.5)':'rgba(8,153,129,0.5)'), lineWidth: 1, lineStyle: 2, axisLabelVisible: true }));
+        // Добавлен axisLabelVisible: true для совпадения пунктиров со шкалой
+        [30, 50, 70].forEach(p => series.rsi.createPriceLine({ 
+            price: p, color: p===50?'rgba(120,123,134,0.3)':(p>50?'rgba(242,54,69,0.5)':'rgba(8,153,129,0.5)'), 
+            lineWidth: 1, lineStyle: 2, axisLabelVisible: true 
+        }));
 
-        // ADX
-        charts.adx = LightweightCharts.createChart(document.getElementById('adx-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 } } });
+        // --- ADX ---
+        charts.adx = LightweightCharts.createChart(document.getElementById('adx-chart'), { 
+            ...indOpts, 
+            rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 }, minimumWidth: 60 } 
+        });
         series.adx = charts.adx.addLineSeries({ color: C.adx, lineWidth: 2, priceLineVisible: false });
         series.pdi = charts.adx.addLineSeries({ color: C.pdi, lineWidth: 1, priceLineVisible: false });
         series.ndi = charts.adx.addLineSeries({ color: C.ndi, lineWidth: 1, priceLineVisible: false });
         series.adx.createPriceLine({ price: 25, color: 'rgba(255,214,0,0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true });
 
-        // Sync TimeScale
+        // Синхронизация Времени
         const allCharts = [charts.main, charts.macd, charts.rsi, charts.adx];
         let isSyncingTime = false;
         allCharts.forEach(c => {
@@ -433,7 +466,7 @@
             });
         });
 
-        // Sync Crosshair
+        // Синхронизация Перекрестий
         const getSeries = (c) => c === charts.main ? series.candle : c === charts.macd ? series.macdLine : c === charts.rsi ? series.rsi : series.adx;
         allCharts.forEach(chart => {
             chart.subscribeCrosshairMove(param => {
@@ -449,8 +482,10 @@
             });
         });
 
-        // Setup Initial Display
-        ['MACD', 'RSI', 'ADX'].forEach(ind => { document.getElementById(`${ind.toLowerCase()}-chart`).style.display = indicatorVis[ind] ? 'block' : 'none'; });
+        // Инициализация видимости при загрузке
+        ['MACD', 'RSI', 'ADX'].forEach(ind => { 
+            document.getElementById(`${ind.toLowerCase()}-chart`).style.display = indicatorVis[ind] ? 'block' : 'none'; 
+        });
 
         resizeObserver = new ResizeObserver(entries => {
             requestAnimationFrame(() => {
@@ -478,7 +513,7 @@
         for (let i = 0; i < data.length; i++) {
             const c = data[i], prev = i > 0 ? data[i-1] : c;
 
-            // VWAP Daily Reset
+            // VWAP
             const d = new Date(c.time * 1000);
             const day = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
             if (day !== currentDay) { sumTPV = 0; sumVol = 0; currentDay = day; }
