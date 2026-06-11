@@ -4,63 +4,340 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AMIGO Terminal Pro</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232962ff'/%3E%3Cstop offset='100%25' stop-color='%23089981'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' rx='20' width='100' height='100'/%3E%3Ctext x='50' y='68' font-family='Arial' font-weight='bold' font-size='60' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+    
+    <!-- Скрипты -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    
     <style>
         :root {
-            --bg-dark: #131722; --bg-panel: #1e222d; --border: #2a2e39;
-            --accent: #2962ff; --text-main: #d1d4dc; --text-muted: #787b86;
-            --up-color: #089981; --down-color: #f23645; --safe-top: env(safe-area-inset-top, 0px);
+            /* Цветовая палитра TradingView */
+            --bg-dark:       #131722;
+            --bg-panel:      #1e222d;
+            --bg-btn-hover:  #2a2e39;
+            --border:        #2a2e39;
+            --accent:        #2962ff;
+            --text-main:     #d1d4dc;
+            --text-muted:    #787b86;
+            --up-color:      #089981;
+            --down-color:    #f23645;
+            
+            /* Размеры и SafeArea для мобильных устройств */
+            --panel-height:  44px;
+            --safe-top:      env(safe-area-inset-top, 0px);
+            --safe-bottom:   env(safe-area-inset-bottom, 0px);
         }
-        *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; user-select:none; -webkit-tap-highlight-color:transparent; }
-        ::-webkit-scrollbar { width:4px; height:4px; } ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
-        body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg-dark); color:var(--text-main); height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
-        header { background:var(--bg-panel); border-bottom:1px solid var(--border); padding:0 16px; padding-top:var(--safe-top); height:44px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
-        .logo { font-weight:800; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase; }
-        .logo span { color:var(--accent); }
-        .price-ticker { font-size:0.85rem; font-weight:700; background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:6px; border:1px solid var(--border); min-width:140px; text-align:center; }
-        .price-up { color:var(--up-color); } .price-down { color:var(--down-color); }
-        .btn-icon { background:none; border:none; color:var(--text-muted); padding:6px; border-radius:6px; cursor:pointer; }
-        .btn-icon.active { color:#ffd600; }
-        .controls-row { background:var(--bg-dark); border-bottom:1px solid var(--border); flex-shrink:0; }
-        .hscroll { display:flex; gap:6px; padding:7px 16px; overflow-x:auto; }
-        .coin-btn, .interval-btn, .indicator-toggle { background:var(--bg-panel); border:1px solid var(--border); color:var(--text-muted); border-radius:6px; font-weight:600; font-size:0.72rem; padding:4px 10px; cursor:pointer; white-space:nowrap; }
-        .coin-btn.active, .interval-btn.active, .indicator-toggle.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-        .coin-btn:not(.pinned) { padding-right:28px; position:relative; }
-        .btn-del { position:absolute; right:4px; top:50%; transform:translateY(-50%); width:18px; height:18px; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--text-muted); }
-        .btn-add { background:transparent !important; border-style:dashed !important; }
-        #charts-wrapper { flex:1; display:flex; flex-direction:column; overflow-y:auto; background:var(--bg-dark); position:relative; }
-        .chart-container { width:100%; border-bottom:1px solid var(--border); position:relative; flex-shrink:0; }
-        #main-chart { min-height:320px; flex:1; }
-        .indicator-chart { height:160px; }
-        .chart-legend { position:absolute; top:8px; left:12px; z-index:5; pointer-events:none; background:rgba(19,23,34,0.75); padding:4px 8px; border-radius:4px; }
-        .chart-title { font-size:0.78rem; font-weight:700; }
-        .chart-values { font-size:0.72rem; display:flex; gap:10px; font-variant-numeric:tabular-nums; color:var(--text-muted); }
-        #loading-overlay { position:absolute; inset:0; background:rgba(19,23,34,0.92); z-index:50; display:flex; align-items:center; justify-content:center; gap:12px; font-weight:600; transition:opacity .25s; }
-        .spinner { width:22px; height:22px; border:2px solid rgba(41,98,255,.25); border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        #toast-container { position:fixed; top:60px; left:12px; right:12px; z-index:10000; display:flex; flex-direction:column; gap:8px; }
-        .toast { background:rgba(30,34,45,.97); border:1px solid var(--border); border-left:4px solid var(--accent); padding:10px 14px; border-radius:8px; font-size:0.8rem; animation:toastIn .2s forwards; }
-        .toast.alert-up { border-left-color:var(--up-color); } .toast.alert-down { border-left-color:var(--down-color); }
-        @keyframes toastIn { from { transform:translateY(-12px); opacity:0; } to { opacity:1; } }
-        @media (max-width:480px) { #main-chart { min-height:260px; } .indicator-chart { height:130px; } }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            padding-top: var(--safe-top);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: var(--panel-height);
+            box-sizing: content-box;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            color: var(--text-main);
+        }
+        .logo span { color: var(--accent); }
+
+        .price-ticker {
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            min-width: 140px;
+            justify-content: center;
+            transition: color 0.3s;
+        }
+        .price-up   { color: var(--up-color); border-color: rgba(8, 153, 129, 0.3); }
+        .price-down { color: var(--down-color); border-color: rgba(242, 54, 69, 0.3); }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: background 0.15s ease, color 0.15s ease;
+            flex-shrink: 0;
+        }
+        .btn-icon:active { background: var(--bg-btn-hover); }
+        .btn-icon svg    { width: 20px; height: 20px; fill: currentColor; }
+        .btn-icon.active { color: #ffd600; filter: drop-shadow(0 0 4px rgba(255, 214, 0, 0.4)); }
+
+        /* --- CONTROLS --- */
+        .controls-row {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hscroll {
+            display: flex;
+            gap: 6px;
+            padding: 8px 16px;
+            overflow-x: auto;
+            align-items: center;
+            scrollbar-width: none;
+        }
+        .hscroll::-webkit-scrollbar { display: none; }
+        .hscroll + .hscroll {
+            border-top: 1px solid var(--border);
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+
+        .coin-btn, .interval-btn, .indicator-toggle {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+        .coin-btn { padding: 5px 14px; font-size: 0.75rem; position: relative; }
+        .interval-btn, .indicator-toggle { padding: 4px 10px; font-size: 0.72rem; }
+
+        .coin-btn.active, .interval-btn.active, .indicator-toggle.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .coin-btn:not(.pinned) { padding-right: 28px; }
+        .btn-del {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+        .coin-btn.active .btn-del { color: rgba(255,255,255,0.7); }
+
+        .btn-add {
+            background: transparent !important;
+            border-style: dashed !important;
+            color: var(--text-muted) !important;
+            padding: 5px 14px !important;
+        }
+
+        /* --- CHARTS --- */
+        #charts-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background-color: var(--bg-dark);
+            position: relative;
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .chart-container {
+            width: 100%;
+            position: relative;
+            background-color: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #main-chart { flex-grow: 1; min-height: 350px; }
+        .indicator-chart { height: 160px; display: none; }
+
+        /* --- LEGENDS --- */
+        .chart-legend {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            z-index: 5;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: rgba(19, 23, 34, 0.85);
+            padding: 6px 10px;
+            border-radius: 6px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .chart-title {
+            font-size: 0.78rem;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+        .chart-values {
+            font-size: 0.72rem;
+            display: flex;
+            gap: 12px;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+        }
+        .chart-values span { color: var(--text-main); }
+        .chart-title .chart-values { display: inline-flex; margin-left: 8px; font-weight: 500; }
+
+        /* --- LOADERS & TOASTS --- */
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(19, 23, 34, 0.92);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 600;
+            gap: 12px;
+            transition: opacity 0.25s ease;
+        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(41, 98, 255, 0.25);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #toast-container {
+            position: fixed;
+            top: calc(var(--panel-height) + var(--safe-top) + 8px);
+            right: 12px;
+            left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10000;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(30, 34, 45, 0.98);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            color: var(--text-main);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            animation: toastIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            pointer-events: auto;
+        }
+        .toast strong { display: block; margin-bottom: 3px; font-size: 0.85rem; }
+        .toast.alert-up   { border-left-color: var(--up-color); }
+        .toast.alert-down { border-left-color: var(--down-color); }
+
+        @keyframes toastIn {
+            from { transform: translateY(-15px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: scale(0.95); }
+            to   { opacity: 0; transform: scale(0.95); }
+        }
+
+        @media (max-width: 480px) {
+            .price-ticker { min-width: unset; font-size: 0.8rem; }
+            #main-chart   { min-height: 280px; }
+            .indicator-chart { height: 140px; }
+        }
     </style>
 </head>
 <body>
+
 <header>
-    <div style="display:flex;align-items:center;gap:14px;">
-        <div class="logo">AMIGO<span>.TERMINAL</span></div>
-        <div class="price-ticker"><span id="ticker-sym">BTC</span> <span id="ticker-price">...</span></div>
+    <div class="header-left">
+        <div class="logo">AMIGO<span>.PRO</span></div>
+        <div class="price-ticker" id="global-ticker">
+            <span id="ticker-sym">BTC</span>
+            <span id="ticker-price">...</span>
+        </div>
     </div>
-    <button class="btn-icon" id="btn-alerts">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
-    </button>
+    <div>
+        <button class="btn-icon" id="btn-alerts" title="Умные алерты (Скан пампов)">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+            </svg>
+        </button>
+    </div>
 </header>
 
 <div class="controls-row">
     <div class="hscroll" id="coin-list"></div>
-    <div class="hscroll">
-        <div id="interval-selector" style="display:flex;gap:4px;">
+    <div class="hscroll" id="bottom-controls">
+        <div style="display:flex;gap:4px;flex-shrink:0;" id="interval-selector">
             <button class="interval-btn" data-interval="1m">1m</button>
             <button class="interval-btn" data-interval="5m">5m</button>
             <button class="interval-btn active" data-interval="15m">15m</button>
@@ -68,11 +345,9 @@
             <button class="interval-btn" data-interval="1h">1h</button>
             <button class="interval-btn" data-interval="4h">4h</button>
             <button class="interval-btn" data-interval="1d">1d</button>
-            <button class="interval-btn" data-interval="1w">1w</button>
-            <button class="interval-btn" data-interval="1M">1M</button>
         </div>
-        <div style="width:1px;background:var(--border);margin:0 8px;height:20px;"></div>
-        <div id="indicator-selector" style="display:flex;gap:4px;">
+        <div style="width:1px;background:var(--border);margin:0 6px;flex-shrink:0;height:20px;align-self:center;"></div>
+        <div style="display:flex;gap:4px;flex-shrink:0;" id="indicator-selector">
             <button class="indicator-toggle active" data-ind="VWAP">VWAP</button>
             <button class="indicator-toggle active" data-ind="MACD">MACD</button>
             <button class="indicator-toggle active" data-ind="RSI">RSI</button>
@@ -82,7 +357,8 @@
 </div>
 
 <div id="charts-wrapper">
-    <div id="loading-overlay" class="hidden"><div class="spinner"></div>Загрузка...</div>
+    <div id="loading-overlay" class="hidden"><div class="spinner"></div>Синхронизация...</div>
+
     <div id="main-chart" class="chart-container">
         <div class="chart-legend">
             <div class="chart-title" id="legend-title">BTCUSDT • 15m</div>
@@ -95,36 +371,85 @@
             </div>
         </div>
     </div>
-    <div id="macd-chart" class="chart-container indicator-chart"><div class="chart-legend"><div class="chart-title">MACD (12,26,9)</div></div></div>
-    <div id="rsi-chart" class="chart-container indicator-chart"><div class="chart-legend"><div class="chart-title">RSI (14)</div></div></div>
-    <div id="adx-chart" class="chart-container indicator-chart"><div class="chart-legend"><div class="chart-title">ADX (14)</div></div></div>
+
+    <div id="macd-chart" class="chart-container indicator-chart">
+        <div class="chart-legend">
+            <div class="chart-title">MACD (12, 26, 9) <span class="chart-values" id="macd-values"></span></div>
+        </div>
+    </div>
+
+    <div id="rsi-chart" class="chart-container indicator-chart">
+        <div class="chart-legend">
+            <div class="chart-title">RSI (14) <span class="chart-values" id="rsi-values"></span></div>
+        </div>
+    </div>
+
+    <div id="adx-chart" class="chart-container indicator-chart">
+        <div class="chart-legend">
+            <div class="chart-title">ADX (14) <span class="chart-values" id="adx-values"></span></div>
+        </div>
+    </div>
 </div>
+
 <div id="toast-container"></div>
 
 <script>
-(function() {
+(function () {
+    'use strict';
+
+    // ============================================================
+    // ИНИЦИАЛИЗАЦИЯ TELEGRAM WEB APP
+    // ============================================================
     const tg = window.Telegram?.WebApp;
-    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#1e222d'); tg.setBackgroundColor('#131722'); }
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        tg.setHeaderColor('#1e222d');
+        tg.setBackgroundColor('#131722');
+    }
 
-    const MAX_CANDLES = 1000, MAX_TOTAL_COINS = 15;
-    const STORAGE = { COINS:'amigo_coins', ALERTS:'amigo_alerts', INDS:'amigo_inds' };
+    // ============================================================
+    // КОНФИГУРАЦИЯ И СТЕЙТ
+    // ============================================================
+    const MAX_CANDLES = 1200; // Увеличенный буфер для корректности длинных EMA
+    const MAX_COINS = 15;
+    
+    const defaultCoins = ['BTCUSDT', 'ETHUSDT'];
+    let userCoins = JSON.parse(localStorage.getItem('amigo_coins')) || ['SOLUSDT', 'DOGEUSDT', 'TONUSDT'];
+    
+    let currentSymbol = 'BTCUSDT';
+    let currentInterval = '15m';
+    let alertsEnabled = localStorage.getItem('amigo_alerts') === 'true';
+    
+    let indicatorVis = { VWAP: true, MACD: true, RSI: true, ADX: true };
+    try {
+        const saved = JSON.parse(localStorage.getItem('amigo_inds'));
+        if (saved) indicatorVis = { ...indicatorVis, ...saved };
+    } catch (_) {}
 
-    const defaultCoins = ['BTCUSDT','ETHUSDT'];
-    let userCoins = JSON.parse(localStorage.getItem(STORAGE.COINS)) || ['SOLUSDT','TONUSDT','DOGEUSDT'];
-    let currentSymbol = 'BTCUSDT', currentInterval = '15m';
-    let alertsEnabled = localStorage.getItem(STORAGE.ALERTS) === 'true';
-    let indicatorVis = { VWAP:true, MACD:true, RSI:true, ADX:true };
-    try { const s = JSON.parse(localStorage.getItem(STORAGE.INDS)); if (s) indicatorVis = {...indicatorVis,...s}; } catch(e){}
+    const prices = {};
+    let candleHistory = [];
+    const indicatorDataMap = new Map(); // time -> { candle, inds }
 
-    const C = { up:'#089981', down:'#f23645', bg:'#131722', grid:'#2a2e39', text:'#787b86', vwap:'#fcc201', macd:'#2962ff', signal:'#ff6d00', histUp:'rgba(8,153,129,.85)', histDown:'rgba(242,54,69,.85)', rsi:'#9c27b0', adx:'#2962ff', pdi:'#089981', ndi:'#f23645' };
+    // Цветовая палитра TradingView
+    const C = {
+        up: '#089981', down: '#f23645', bg: '#131722', grid: 'rgba(42, 46, 57, 0.5)', text: '#787b86',
+        vwap: '#fcc201', macd: '#2962ff', signal: '#ff6d00', histUp: 'rgba(8,153,129,0.85)', histDown: 'rgba(242,54,69,0.85)',
+        rsi: '#9c27b0', adx: '#2962ff', pdi: '#089981', ndi: '#f23645',
+    };
 
-    const charts = { main:null, macd:null, rsi:null, adx:null };
+    const charts = { main: null, macd: null, rsi: null, adx: null };
     const series = {};
-    let candleHistory = [], prices = {};
-    let klineWs = null, tickerWs = null, klineTimer = null, tickerTimer = null, klineDelay = 1000, tickerDelay = 1000;
-    const MAX_WS_DELAY = 30000;
-    let resizeObserver = null, isSyncing = false;
+    let resizeObserver = null;
+    let currentCrosshairTime = null;
 
+    let klineWs = null, tickerWs = null;
+    let klTimer = null, tickTimer = null;
+    let klDelay = 1000, tickDelay = 1000;
+
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
     function formatPrice(p) {
         if (!p && p !== 0) return '—';
         if (p < 0.0001) return p.toPrecision(4);
@@ -136,217 +461,522 @@
 
     function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
 
-    function showToast(title, msg, type = 'info') {
-        const c = document.getElementById('toast-container');
+    function showToast(title, message, type = 'info') {
+        const container = document.getElementById('toast-container');
         const t = document.createElement('div');
         t.className = `toast ${type}`;
-        t.innerHTML = `<strong>${title}</strong><span>${msg}</span>`;
-        c.appendChild(t);
-        setTimeout(() => { t.style.animation = 'none'; t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, 3400);
+        t.innerHTML = `<strong>${title}</strong><span>${message}</span>`;
+        container.appendChild(t);
+        setTimeout(() => {
+            t.style.animation = 'toastOut 0.25s ease forwards';
+            setTimeout(() => t.remove(), 250);
+        }, 4000);
     }
 
-    function getActiveCoins() { return [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_TOTAL_COINS); }
+    function getActiveCoins() { return [...new Set([...defaultCoins, ...userCoins])].slice(0, MAX_COINS); }
 
-    function renderCoinList() {
-        const cont = document.getElementById('coin-list');
-        cont.innerHTML = '';
+    // ============================================================
+    // UI: МОНЕТЫ И АЛЕРТЫ
+    // ============================================================
+    function renderCoins() {
+        const wrap = document.getElementById('coin-list');
+        wrap.innerHTML = '';
+        
         getActiveCoins().forEach(coin => {
-            const pinned = defaultCoins.includes(coin);
+            const isPinned = defaultCoins.includes(coin);
             const btn = document.createElement('button');
-            btn.className = `coin-btn${coin === currentSymbol ? ' active' : ''}${pinned ? ' pinned' : ''}`;
-            btn.textContent = coin.replace('USDT','');
-            if (!pinned) {
+            btn.className = `coin-btn${coin === currentSymbol ? ' active' : ''}${isPinned ? ' pinned' : ''}`;
+            btn.textContent = coin.replace('USDT', '');
+            
+            if (!isPinned) {
                 const del = document.createElement('span');
-                del.className = 'btn-del';
-                del.innerHTML = '&times;';
+                del.className = 'btn-del'; del.innerHTML = '&times;';
                 del.onclick = e => { e.stopPropagation(); removeCoin(coin); };
                 btn.appendChild(del);
             }
-            btn.onclick = () => coin !== currentSymbol && changePair(coin);
-            cont.appendChild(btn);
+            btn.onclick = () => { if (coin !== currentSymbol) changePair(coin); };
+            wrap.appendChild(btn);
         });
+
         const add = document.createElement('button');
-        add.className = 'coin-btn btn-add';
-        add.textContent = '+';
-        add.onclick = addNewCoin;
-        cont.appendChild(add);
+        add.className = 'coin-btn btn-add'; add.textContent = '+';
+        add.onclick = () => {
+            let val = prompt('Тикер монеты (напр. XRP):');
+            if (!val) return;
+            val = val.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+            if (!val.endsWith('USDT')) val += 'USDT';
+            
+            const all = getActiveCoins();
+            if (all.length >= MAX_COINS) return showToast('Лимит', `Максимум ${MAX_COINS}`, 'alert-down');
+            if (all.includes(val)) return;
+            
+            userCoins.push(val);
+            localStorage.setItem('amigo_coins', JSON.stringify(userCoins));
+            connectTicker(); renderCoins();
+        };
+        wrap.appendChild(add);
     }
 
-    function addNewCoin() {
-        let coin = prompt('Тикер (к USDT):').toUpperCase().replace(/[^A-Z0-9]/g,'').trim();
-        if (!coin) return;
-        if (!coin.endsWith('USDT')) coin += 'USDT';
-        const all = getActiveCoins();
-        if (all.length >= MAX_TOTAL_COINS) return showToast('Лимит', `Максимум ${MAX_TOTAL_COINS}`, 'alert-down');
-        if (all.includes(coin)) return showToast('Инфо', 'Уже добавлена', 'info');
-        userCoins.push(coin);
-        localStorage.setItem(STORAGE.COINS, JSON.stringify(userCoins));
-        reconnectTicker();
-        renderCoinList();
-    }
-
-    function removeCoin(coin) {
-        userCoins = userCoins.filter(c => c !== coin);
-        localStorage.setItem(STORAGE.COINS, JSON.stringify(userCoins));
-        sessionStorage.removeItem(`alerted_${coin}`);
-        if (currentSymbol === coin) changePair(defaultCoins[0]);
-        else { reconnectTicker(); renderCoinList(); }
-    }
-
-    function toggleAlerts() {
-        alertsEnabled = !alertsEnabled;
-        localStorage.setItem(STORAGE.ALERTS, alertsEnabled);
-        document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
-        showToast('Alerts', alertsEnabled ? 'Мониторинг ≥2% включён' : 'Выключен', 'info');
+    function removeCoin(c) {
+        userCoins = userCoins.filter(x => x !== c);
+        localStorage.setItem('amigo_coins', JSON.stringify(userCoins));
+        if (currentSymbol === c) changePair(defaultCoins[0]);
+        else { connectTicker(); renderCoins(); }
     }
 
     function checkAlert(sym, price, pct) {
-        if (!alertsEnabled || Math.abs(pct) < 2) return;
-        const key = `alerted_${sym}`;
-        const last = sessionStorage.getItem(key);
-        if (last && Date.now() - last < 15*60*1000) return;
-        const dir = pct > 0 ? '🚀 ПАМП' : '🩸 ДАМП';
-        showToast(`${dir}: ${sym.replace('USDT','')}`, `${formatPrice(price)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)`, pct > 0 ? 'alert-up' : 'alert-down');
-        sessionStorage.setItem(key, Date.now());
+        if (!alertsEnabled || Math.abs(pct) < 2.0) return;
+        const key = `alert_${sym}`, now = Date.now(), last = sessionStorage.getItem(key);
+        if (last && now - parseInt(last) < 15 * 60 * 1000) return; // Cooldown 15 мин
+        
+        showToast(
+            `${pct > 0 ? '🚀 ПАМП' : '🩸 ДАМП'}: ${sym.replace('USDT','')}`, 
+            `${formatPrice(price)} (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)`, 
+            pct > 0 ? 'alert-up' : 'alert-down'
+        );
+        sessionStorage.setItem(key, now.toString());
     }
 
-    function destroyCharts() {
-        if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
-        Object.values(charts).forEach(c => c && c.remove());
-        Object.keys(charts).forEach(k => charts[k] = null);
-        Object.keys(series).forEach(k => delete series[k]);
-    }
-
-    function initCharts() {
-        destroyCharts();
-        const cont = {
-            main: document.getElementById('main-chart'),
-            macd: document.getElementById('macd-chart'),
-            rsi: document.getElementById('rsi-chart'),
-            adx: document.getElementById('adx-chart')
-        };
-
-        const common = {
-            layout: { textColor: C.text, background: { type: 'solid', color: C.bg } },
-            grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            timeScale: { borderColor: C.grid, timeVisible: true, rightOffset: 5 },
-            handleScroll: { vertTouchDrag: false, horzTouchDrag: true, mouseWheel: true },
-            handleScale: { axisPressedMouseMove: { time: true, price: true }, mouseWheel: true, pinch: true }
-        };
-
-        charts.main = LightweightCharts.createChart(cont.main, {
-            ...common,
-            rightPriceScale: { borderColor: C.grid, scaleMargins: { top: .1, bottom: .25 } }
-        });
-        series.candle = charts.main.addCandlestickSeries({ upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down });
-        charts.main.priceScale('volume').applyOptions({ scaleMargins: { top: .8, bottom: 0 }, visible: false });
-        series.volume = charts.main.addHistogramSeries({ priceScaleId: 'volume' });
-        series.vwap = charts.main.addLineSeries({ color: C.vwap, lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false });
-
-        const indOpt = { ...common, timeScale: { ...common.timeScale, visible: false } };
-
-        charts.macd = LightweightCharts.createChart(cont.macd, indOpt);
-        series.macdHist = charts.macd.addHistogramSeries({ priceScaleId: '' });
-        series.macdLine = charts.macd.addLineSeries({ color: C.macd, lineWidth: 2, priceLineVisible: false });
-        series.macdSignal = charts.macd.addLineSeries({ color: C.signal, lineWidth: 2, priceLineVisible: false });
-
-        charts.rsi = LightweightCharts.createChart(cont.rsi, indOpt);
-        series.rsi = charts.rsi.addLineSeries({ color: C.rsi, lineWidth: 2, priceLineVisible: false });
-        series.rsi.createPriceLine({ price: 70, color: 'rgba(242,54,69,.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
-        series.rsi.createPriceLine({ price: 30, color: 'rgba(8,153,129,.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
-
-        charts.adx = LightweightCharts.createChart(cont.adx, indOpt);
-        series.adx = charts.adx.addLineSeries({ color: C.adx, lineWidth: 2, priceLineVisible: false });
-        series.pdi = charts.adx.addLineSeries({ color: C.pdi, lineWidth: 1, priceLineVisible: false });
-        series.ndi = charts.adx.addLineSeries({ color: C.ndi, lineWidth: 1, priceLineVisible: false });
-        series.adx.createPriceLine({ price: 25, color: 'rgba(255,214,0,.3)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
-
-        // Синхронизация
-        const linked = [charts.macd, charts.rsi, charts.adx].filter(Boolean);
-        charts.main.timeScale().subscribeVisibleLogicalRangeChange(r => {
-            if (isSyncing || !r) return;
-            isSyncing = true;
-            linked.forEach(ch => ch.timeScale().setVisibleLogicalRange(r));
-            isSyncing = false;
-        });
-
-        charts.main.subscribeCrosshairMove(p => {
-            if (!p.time) { linked.forEach(c => c.clearCrosshairPosition()); return; }
-            const d = p.seriesData.get(series.candle);
-            if (d) updateLegend(d);
-            linked.forEach(c => c.setCrosshairPosition(0, p.time, series.candle));
-        });
-
-        resizeObserver = new ResizeObserver(entries => {
-            requestAnimationFrame(() => entries.forEach(e => {
-                const id = e.target.id;
-                const ch = id === 'main-chart' ? charts.main : charts[id.replace('-chart','')];
-                if (ch) ch.applyOptions({ width: e.contentRect.width, height: e.contentRect.height });
-            }));
-        });
-        Object.values(cont).forEach(c => resizeObserver.observe(c));
-
-        applyIndicatorVisibility();
-    }
-
-    function updateLegend(c) {
-        if (!c) return;
-        const color = c.close >= c.open ? C.up : C.down;
-        document.getElementById('legend-title').textContent = `${currentSymbol} • ${currentInterval}`;
-        ['open','high','low','close'].forEach(k => {
-            const el = document.getElementById('info-' + k);
-            el.textContent = formatPrice(c[k]);
-            el.style.color = color;
-        });
-        const v = document.getElementById('info-vol');
-        v.textContent = c.volume ? c.volume.toFixed(2) : '0';
-        v.style.color = color;
-    }
-
-    function applyIndicatorVisibility() {
-        const map = { MACD: 'macd-chart', RSI: 'rsi-chart', ADX: 'adx-chart' };
-        Object.entries(map).forEach(([k, id]) => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = indicatorVis[k] ? 'block' : 'none';
-        });
-    }
-
-    function calculateIndicators(data) {
-        // Полноценный расчёт из B с исправлениями
-        if (!data.length) return { vwap: [], macd: { macdLine: [], signalLine: [], hist: [] }, rsi: [], adx: { adx: [], pdi: [], ndi: [] } };
-        // ... (код расчёта из B — сокращён для brevity, но полностью рабочий)
-        // В реальном коде здесь полный блок из B с Wilder smoothing
-        return { vwap: [], macd: { macdLine: [], signalLine: [], hist: [] }, rsi: [], adx: { adx: [], pdi: [], ndi: [] } };
-    }
-
-    // Дальнейшие функции (loadHistory, WS, changePair и т.д.) — полностью исправленные версии из синтеза A+B
-    // (включая корректное обновление volume, VWAP поверх свечей, двустороннюю синхронизацию и т.д.)
-
+    // ============================================================
+    // ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА
+    // ============================================================
     function initUI() {
         document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
-        document.getElementById('btn-alerts').onclick = toggleAlerts;
-        document.querySelectorAll('#interval-selector .interval-btn').forEach(b => {
-            b.onclick = () => b.dataset.interval !== currentInterval && changeInterval(b.dataset.interval);
+        document.getElementById('btn-alerts').onclick = () => {
+            alertsEnabled = !alertsEnabled;
+            localStorage.setItem('amigo_alerts', alertsEnabled);
+            document.getElementById('btn-alerts').classList.toggle('active', alertsEnabled);
+            showToast('Радар', alertsEnabled ? 'Мониторинг движений >2% включен' : 'Радар отключен');
+        };
+
+        document.querySelectorAll('.interval-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.interval === currentInterval);
+            b.onclick = () => changeInterval(b.dataset.interval);
         });
-        document.querySelectorAll('#indicator-selector .indicator-toggle').forEach(b => {
+
+        document.querySelectorAll('.indicator-toggle').forEach(b => {
             const ind = b.dataset.ind;
             b.classList.toggle('active', indicatorVis[ind]);
             b.onclick = () => {
                 indicatorVis[ind] = !indicatorVis[ind];
                 b.classList.toggle('active', indicatorVis[ind]);
-                localStorage.setItem(STORAGE.INDS, JSON.stringify(indicatorVis));
-                applyIndicatorVisibility();
+                localStorage.setItem('amigo_inds', JSON.stringify(indicatorVis));
+                document.getElementById(`${ind.toLowerCase()}-chart`).style.display = indicatorVis[ind] ? 'block' : 'none';
+                if (ind === 'VWAP' && series.vwap) series.vwap.applyOptions({ visible: indicatorVis.VWAP });
             };
         });
-        renderCoinList();
+        renderCoins();
     }
 
-    // Запуск
+    // ============================================================
+    // ГРАФИКИ: НАСТРОЙКА И СИНХРОНИЗАЦИЯ
+    // ============================================================
+    function initCharts() {
+        if (resizeObserver) resizeObserver.disconnect();
+        Object.values(charts).forEach(c => { if (c) c.remove(); });
+        Object.keys(series).forEach(k => delete series[k]);
+        indicatorDataMap.clear();
+
+        const common = {
+            layout: { textColor: C.text, background: { type: 'solid', color: C.bg } },
+            grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+            timeScale: { 
+                borderColor: C.grid, timeVisible: true, rightOffset: 5,
+                tickMarkFormatter: (time, type) => {
+                    const d = new Date(time * 1000);
+                    return type <= 1 ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` 
+                                     : `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+                }
+            },
+            handleScroll: { vertTouchDrag: false, horzTouchDrag: true },
+            handleScale: { axisPressedMouseMove: { time: true, price: true } }
+        };
+
+        const indOpts = {
+            ...common,
+            timeScale: { ...common.timeScale, visible: false },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                horzLine: { visible: false, labelVisible: false },
+                vertLine: { width: 1, color: 'rgba(255,255,255,0.25)', style: LightweightCharts.LineStyle.Dashed }
+            }
+        };
+
+        // MAIN
+        charts.main = LightweightCharts.createChart(document.getElementById('main-chart'), {
+            ...common, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.2 } },
+            crosshair: { vertLine: indOpts.crosshair.vertLine, horzLine: indOpts.crosshair.vertLine }
+        });
+        
+        series.candle = charts.main.addCandlestickSeries({
+            upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down
+        });
+
+        // Volume: отдельный скейл, чтобы не сплющивал график свечей
+        charts.main.priceScale('volume').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 }, visible: false });
+        series.volume = charts.main.addHistogramSeries({ priceScaleId: 'volume', priceFormat: { type: 'volume' } });
+        
+        series.vwap = charts.main.addLineSeries({
+            color: C.vwap, lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, 
+            priceLineVisible: false, visible: indicatorVis.VWAP
+        });
+
+        // MACD
+        charts.macd = LightweightCharts.createChart(document.getElementById('macd-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.1, bottom: 0.1 } } });
+        series.macdHist = charts.macd.addHistogramSeries({ priceScaleId: '' });
+        series.macdLine = charts.macd.addLineSeries({ color: C.macd, lineWidth: 2, priceLineVisible: false });
+        series.macdSignal = charts.macd.addLineSeries({ color: C.signal, lineWidth: 2, priceLineVisible: false });
+
+        // RSI
+        charts.rsi = LightweightCharts.createChart(document.getElementById('rsi-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.05, bottom: 0.05 } } });
+        series.rsi = charts.rsi.addLineSeries({ color: C.rsi, lineWidth: 2, priceLineVisible: false });
+        [30, 50, 70].forEach(p => series.rsi.createPriceLine({ price: p, color: p===50?'rgba(120,123,134,0.2)':(p>50?'rgba(242,54,69,0.4)':'rgba(8,153,129,0.4)'), lineWidth: 1, lineStyle: 2, axisLabelVisible: false }));
+
+        // ADX
+        charts.adx = LightweightCharts.createChart(document.getElementById('adx-chart'), { ...indOpts, rightPriceScale: { borderColor: C.grid, scaleMargins: { top: 0.05, bottom: 0.05 } } });
+        series.adx = charts.adx.addLineSeries({ color: C.adx, lineWidth: 2, priceLineVisible: false });
+        series.pdi = charts.adx.addLineSeries({ color: C.pdi, lineWidth: 1, priceLineVisible: false });
+        series.ndi = charts.adx.addLineSeries({ color: C.ndi, lineWidth: 1, priceLineVisible: false });
+        series.adx.createPriceLine({ price: 25, color: 'rgba(255,214,0,0.3)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false });
+
+        // Синхронизация TimeScale
+        const allCharts = [charts.main, charts.macd, charts.rsi, charts.adx];
+        let isSyncingTime = false;
+        allCharts.forEach(c => {
+            c.timeScale().subscribeVisibleLogicalRangeChange(range => {
+                if (isSyncingTime || !range) return;
+                isSyncingTime = true;
+                allCharts.forEach(other => { if (other !== c) other.timeScale().setVisibleLogicalRange(range); });
+                isSyncingTime = false;
+            });
+        });
+
+        // Умная синхронизация Crosshair
+        const getSeries = (c) => c === charts.main ? series.candle : c === charts.macd ? series.macdLine : c === charts.rsi ? series.rsi : series.adx;
+        
+        allCharts.forEach(chart => {
+            chart.subscribeCrosshairMove(param => {
+                if (!param.time) {
+                    currentCrosshairTime = null;
+                    allCharts.forEach(c => { if (c !== chart) c.clearCrosshairPosition(); });
+                    if (candleHistory.length) updateLegends(candleHistory[candleHistory.length - 1].time);
+                    return;
+                }
+                currentCrosshairTime = param.time;
+                allCharts.forEach(c => {
+                    if (c !== chart) c.setCrosshairPosition(0, param.time, getSeries(c));
+                });
+                updateLegends(param.time);
+            });
+        });
+
+        // ResizeObserver
+        resizeObserver = new ResizeObserver(entries => {
+            requestAnimationFrame(() => {
+                entries.forEach(({ target, contentRect: { width, height } }) => {
+                    if (width <= 0 || height <= 0) return;
+                    const c = charts[target.id.replace('-chart', '')] || (target.id === 'main-chart' ? charts.main : null);
+                    if (c) c.applyOptions({ width, height });
+                });
+            });
+        });
+        document.querySelectorAll('.chart-container').forEach(el => {
+            el.style.display = (el.id === 'main-chart' || indicatorVis[el.id.replace('-chart', '').toUpperCase()]) ? 'block' : 'none';
+            resizeObserver.observe(el);
+        });
+        resizeObserver.observe(document.getElementById('charts-wrapper'));
+    }
+
+    // ============================================================
+    // МАТЕМАТИКА ИНДИКАТОРОВ (Тщательно переработана под TV)
+    // ============================================================
+    function calculateIndicators(data) {
+        const out = { vwap: [], macdLine: [], macdSig: [], macdHist: [], rsi: [], adx: [], pdi: [], ndi: [] };
+        if (!data.length) return out;
+
+        // VWAP State
+        let sumTPV = 0, sumVol = 0, currentDay = null;
+        // MACD State
+        const k12 = 2/13, k26 = 2/27, k9 = 2/10;
+        let ema12 = data[0].close, ema26 = data[0].close, emaSig = 0;
+        // RSI State (14)
+        let gains = 0, losses = 0, avgGain = 0, avgLoss = 0;
+        // ADX State (14)
+        let trSum = 0, pDmSum = 0, mDmSum = 0;
+        let avgTr = 0, avgPDm = 0, avgMDm = 0;
+        let dxSum = 0, dxCount = 0, avgDx = 0;
+
+        for (let i = 0; i < data.length; i++) {
+            const c = data[i], prev = i > 0 ? data[i-1] : c;
+
+            // --- VWAP (Сброс ежедневно в 00:00 UTC) ---
+            const d = new Date(c.time * 1000);
+            const day = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+            if (day !== currentDay) { sumTPV = 0; sumVol = 0; currentDay = day; }
+            sumTPV += ((c.high + c.low + c.close) / 3) * c.volume;
+            sumVol += c.volume;
+            out.vwap.push({ time: c.time, value: sumVol ? sumTPV / sumVol : c.close });
+
+            // --- MACD ---
+            ema12 = (c.close - ema12) * k12 + ema12;
+            ema26 = (c.close - ema26) * k26 + ema26;
+            const macd = ema12 - ema26;
+            emaSig = i === 0 ? macd : (macd - emaSig) * k9 + emaSig;
+            const hist = macd - emaSig;
+            out.macdLine.push({ time: c.time, value: macd });
+            out.macdSig.push({ time: c.time, value: emaSig });
+            out.macdHist.push({ time: c.time, value: hist, color: hist >= 0 ? C.histUp : C.histDown });
+
+            // --- RSI (Wilder SMMA) ---
+            if (i > 0) {
+                const chg = c.close - prev.close;
+                if (i <= 14) {
+                    if (chg > 0) gains += chg; else losses -= chg;
+                    if (i === 14) { avgGain = gains/14; avgLoss = losses/14; }
+                } else {
+                    avgGain = (avgGain * 13 + (chg > 0 ? chg : 0)) / 14;
+                    avgLoss = (avgLoss * 13 + (chg < 0 ? -chg : 0)) / 14;
+                }
+            }
+            if (i >= 14) {
+                const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+                out.rsi.push({ time: c.time, value: 100 - (100 / (1 + rs)) });
+            }
+
+            // --- ADX (True Wilder RMA) ---
+            if (i > 0) {
+                const tr = Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
+                const upM = c.high - prev.high, dnM = prev.low - c.low;
+                const pDM = (upM > dnM && upM > 0) ? upM : 0;
+                const mDM = (dnM > upM && dnM > 0) ? dnM : 0;
+
+                if (i <= 14) {
+                    trSum += tr; pDmSum += pDM; mDmSum += mDM;
+                    if (i === 14) { avgTr = trSum/14; avgPDm = pDmSum/14; avgMDm = mDmSum/14; }
+                } else {
+                    avgTr = avgTr - (avgTr/14) + tr;
+                    avgPDm = avgPDm - (avgPDm/14) + pDM;
+                    avgMDm = avgMDm - (avgMDm/14) + mDM;
+                }
+
+                if (i >= 14) {
+                    const diP = avgTr > 0 ? (avgPDm/avgTr)*100 : 0;
+                    const diM = avgTr > 0 ? (avgMDm/avgTr)*100 : 0;
+                    const dx = (diP + diM) > 0 ? Math.abs(diP - diM)/(diP + diM)*100 : 0;
+                    
+                    out.pdi.push({ time: c.time, value: diP });
+                    out.ndi.push({ time: c.time, value: diM });
+
+                    dxCount++;
+                    if (dxCount <= 14) {
+                        dxSum += dx;
+                        if (dxCount === 14) { avgDx = dxSum/14; out.adx.push({ time: c.time, value: avgDx }); }
+                    } else {
+                        avgDx = (avgDx * 13 + dx) / 14;
+                        out.adx.push({ time: c.time, value: avgDx });
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    function buildAndApplyData() {
+        indicatorDataMap.clear();
+        const i = calculateIndicators(candleHistory);
+        
+        series.candle.setData(candleHistory);
+        series.volume.setData(candleHistory.map(c => ({ time: c.time, value: c.volume, color: c.close >= c.open ? C.histUp : C.histDown })));
+        
+        series.vwap.setData(i.vwap);
+        series.macdLine.setData(i.macdLine); series.macdSignal.setData(i.macdSig); series.macdHist.setData(i.macdHist);
+        series.rsi.setData(i.rsi);
+        series.adx.setData(i.adx); series.pdi.setData(i.pdi); series.ndi.setData(i.ndi);
+
+        // Индексация для легенд (по времени)
+        for (let j=0; j<candleHistory.length; j++) {
+            const t = candleHistory[j].time;
+            indicatorDataMap.set(t, {
+                candle: candleHistory[j],
+                vwap: i.vwap.find(x => x.time === t),
+                macdL: i.macdLine.find(x => x.time === t),
+                macdS: i.macdSig.find(x => x.time === t),
+                macdH: i.macdHist.find(x => x.time === t),
+                rsi: i.rsi.find(x => x.time === t),
+                adx: i.adx.find(x => x.time === t),
+                pdi: i.pdi.find(x => x.time === t),
+                ndi: i.ndi.find(x => x.time === t)
+            });
+        }
+    }
+
+    // ============================================================
+    // ОБНОВЛЕНИЕ ЛЕГЕНД
+    // ============================================================
+    function updateLegends(time) {
+        const d = indicatorDataMap.get(time);
+        if (!d) return;
+
+        const color = d.candle.close >= d.candle.open ? C.up : C.down;
+        document.getElementById('info-open').textContent = formatPrice(d.candle.open);
+        document.getElementById('info-high').textContent = formatPrice(d.candle.high);
+        document.getElementById('info-low').textContent = formatPrice(d.candle.low);
+        document.getElementById('info-close').textContent = formatPrice(d.candle.close);
+        document.getElementById('info-vol').textContent = d.candle.volume.toFixed(2);
+        ['open','high','low','close','vol'].forEach(k => document.getElementById(`info-${k}`).style.color = color);
+
+        const mVal = document.getElementById('macd-values');
+        if (d.macdL && d.macdS && d.macdH) {
+            mVal.innerHTML = `<span style="color:${C.macd}">${d.macdL.value.toFixed(2)}</span> ` +
+                             `<span style="color:${C.signal}">${d.macdS.value.toFixed(2)}</span> ` +
+                             `<span style="color:${d.macdH.value>=0?C.up:C.down}">${d.macdH.value.toFixed(2)}</span>`;
+        } else mVal.innerHTML = '';
+
+        const rVal = document.getElementById('rsi-values');
+        if (d.rsi) rVal.innerHTML = `<span style="color:${C.rsi}">${d.rsi.value.toFixed(2)}</span>`; else rVal.innerHTML = '';
+
+        const aVal = document.getElementById('adx-values');
+        if (d.adx && d.pdi && d.ndi) {
+            aVal.innerHTML = `<span style="color:${C.adx}">ADX: ${d.adx.value.toFixed(2)}</span> ` +
+                             `<span style="color:${C.pdi}">+DI: ${d.pdi.value.toFixed(2)}</span> ` +
+                             `<span style="color:${C.ndi}">-DI: ${d.ndi.value.toFixed(2)}</span>`;
+        } else aVal.innerHTML = '';
+    }
+
+    // ============================================================
+    // REST & WEBSOCKET API
+    // ============================================================
+    async function loadHistory() {
+        showLoading(true);
+        try {
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${currentSymbol}&interval=${currentInterval}&limit=${MAX_CANDLES}`);
+            if (!res.ok) throw Error(res.status);
+            const data = await res.json();
+            
+            candleHistory = data.map(k => ({
+                time: Math.floor(k[0]/1000), open: parseFloat(k[1]), high: parseFloat(k[2]),
+                low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5])
+            }));
+
+            if (candleHistory.length) {
+                const s = candleHistory[candleHistory.length-1].close;
+                let prec = 2, minM = 0.01;
+                if (s<0.0001) { prec=8; minM=0.00000001; } else if (s<0.01) { prec=6; minM=0.000001; } else if (s<1) { prec=4; minM=0.0001; }
+                series.candle.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: minM } });
+                
+                buildAndApplyData();
+                charts.main.timeScale().fitContent();
+                updateLegends(candleHistory[candleHistory.length-1].time);
+            }
+            return true;
+        } catch (e) {
+            showToast('Сбой', 'Ошибка загрузки истории', 'alert-down');
+            return false;
+        } finally { showLoading(false); }
+    }
+
+    function connectKline() {
+        if (klineWs) { klineWs.onclose = null; klineWs.close(); }
+        clearTimeout(klTimer);
+        klineWs = new WebSocket(`wss://stream.binance.com:9443/ws/${currentSymbol.toLowerCase()}@kline_${currentInterval}`);
+        
+        klineWs.onopen = () => klDelay = 1000;
+        klineWs.onmessage = e => {
+            try {
+                const k = JSON.parse(e.data).k;
+                if (!k) return;
+                const c = { time: Math.floor(k.t/1000), open: parseFloat(k.o), high: parseFloat(k.h), low: parseFloat(k.l), close: parseFloat(k.c), volume: parseFloat(k.v) };
+                
+                const lastT = candleHistory.length ? candleHistory[candleHistory.length-1].time : 0;
+                if (c.time === lastT) candleHistory[candleHistory.length-1] = c;
+                else { candleHistory.push(c); if(candleHistory.length > MAX_CANDLES) candleHistory.shift(); }
+
+                // Полный O(N) пересчет для точности сглаживания (<1мс для 1200 свечей)
+                const inds = calculateIndicators(candleHistory);
+                const last = (arr) => arr.length ? arr[arr.length-1] : null;
+                
+                const v = last(inds.vwap), mL = last(inds.macdLine), mS = last(inds.macdSig), mH = last(inds.macdHist);
+                const r = last(inds.rsi), ax = last(inds.adx), pd = last(inds.pdi), nd = last(inds.ndi);
+
+                // Апдейт только последнего значения для UI-производительности
+                series.candle.update(c);
+                series.volume.update({ time: c.time, value: c.volume, color: c.close >= c.open ? C.histUp : C.histDown });
+                if(v) series.vwap.update(v);
+                if(mL) series.macdLine.update(mL); if(mS) series.macdSignal.update(mS); if(mH) series.macdHist.update(mH);
+                if(r) series.rsi.update(r);
+                if(ax) series.adx.update(ax); if(pd) series.pdi.update(pd); if(nd) series.ndi.update(nd);
+
+                indicatorDataMap.set(c.time, { candle: c, vwap: v, macdL: mL, macdS: mS, macdH: mH, rsi: r, adx: ax, pdi: pd, ndi: nd });
+                if (!currentCrosshairTime || currentCrosshairTime === c.time) updateLegends(c.time);
+            } catch (err) {}
+        };
+        klineWs.onclose = () => klTimer = setTimeout(connectKline, klDelay = Math.min(klDelay * 2, 30000));
+    }
+
+    function connectTicker() {
+        if (tickerWs) { tickerWs.onclose = null; tickerWs.close(); }
+        clearTimeout(tickTimer);
+        const streams = getActiveCoins().map(c => `${c.toLowerCase()}@ticker`).join('/');
+        if (!streams) return;
+        
+        tickerWs = new WebSocket(`wss://stream.binance.com:9443/ws/${streams}`);
+        tickerWs.onopen = () => tickDelay = 1000;
+        tickerWs.onmessage = e => {
+            try {
+                const d = JSON.parse(e.data);
+                if (!d.s) return;
+                const sym = d.s, price = parseFloat(d.c), pct = parseFloat(d.P);
+                prices[sym] = price;
+
+                if (sym === currentSymbol) {
+                    const t = document.getElementById('ticker-price');
+                    t.textContent = formatPrice(price);
+                    t.className = `price-ticker ${pct >= 0 ? 'price-up' : 'price-down'}`;
+                }
+                checkAlert(sym, price, pct);
+            } catch (err) {}
+        };
+        tickerWs.onclose = () => tickTimer = setTimeout(connectTicker, tickDelay = Math.min(tickDelay * 2, 30000));
+    }
+
+    // ============================================================
+    // СМЕНА ПАРЫ И ИНТЕРВАЛА
+    // ============================================================
+    async function changePair(sym) {
+        if (sym === currentSymbol) return;
+        currentSymbol = sym;
+        document.getElementById('ticker-sym').textContent = sym.replace('USDT', '');
+        document.getElementById('ticker-price').textContent = prices[sym] ? formatPrice(prices[sym]) : '...';
+        document.getElementById('ticker-price').className = 'price-ticker';
+        document.getElementById('legend-title').textContent = `${sym} • ${currentInterval}`;
+        
+        renderCoins(); initCharts();
+        if (await loadHistory()) connectKline();
+    }
+
+    async function changeInterval(int) {
+        if (int === currentInterval) return;
+        currentInterval = int;
+        document.querySelectorAll('.interval-btn').forEach(b => b.classList.toggle('active', b.dataset.interval === int));
+        document.getElementById('legend-title').textContent = `${currentSymbol} • ${int}`;
+        
+        initCharts();
+        if (await loadHistory()) connectKline();
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (klineWs) klineWs.close(); if (tickerWs) tickerWs.close();
+        if (resizeObserver) resizeObserver.disconnect();
+    });
+
+    // ============================================================
+    // СТАРТ
+    // ============================================================
     initUI();
     initCharts();
-    // loadHistory().then(() => connectKline());
-    // connectTicker();
+    loadHistory().then(ok => { if (ok) connectKline(); });
+    connectTicker();
+
 })();
 </script>
 </body>
